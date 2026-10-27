@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-only; Copyright (C) 2026 Benco -->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+ xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+ xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+ xmlns:com="http://schemas.microsoft.com/appx/manifest/com/windows10"
+ xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
+ xmlns:desktop5="http://schemas.microsoft.com/appx/manifest/desktop/windows10/5"
+ xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+ IgnorableNamespaces="uap uap10 com desktop4 desktop5 rescap">
+ <Identity Name="IconicFolders" Publisher="CN=IconicFolders" Version="1.0.1.0" ProcessorArchitecture="x64"/>
+ <Properties><DisplayName>IconicFolders</DisplayName><PublisherDisplayName>IconicFolders</PublisherDisplayName><Logo>assets\logo44.png</Logo><uap10:AllowExternalContent>true</uap10:AllowExternalContent></Properties>
+ <Resources><Resource Language="en-US"/><Resource Language="fr-FR"/></Resources>
+ <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0"/></Dependencies>
+ <Applications>
+  <Application Id="IconicFolders" Executable="IconicFolders.exe" uap10:TrustLevel="mediumIL" uap10:RuntimeBehavior="win32App">
+   <uap:VisualElements DisplayName="IconicFolders" Description="IconicFolders" BackgroundColor="transparent" Square150x150Logo="assets\logo150.png" Square44x44Logo="assets\logo44.png" AppListEntry="none"/>
+   <Extensions>
+    <com:Extension Category="windows.comServer"><com:ComServer><com:SurrogateServer DisplayName="IconicFolders"><com:Class Id="75F4D684-8623-4CE1-B3B2-464EF177FDDE" Path="IconicFoldersShell.dll" ThreadingModel="STA"/></com:SurrogateServer></com:ComServer></com:Extension>
+    <desktop4:Extension Category="windows.fileExplorerContextMenus"><desktop4:FileExplorerContextMenus><desktop5:ItemType Type="Directory"><desktop5:Verb Id="IconicFolders" Clsid="75F4D684-8623-4CE1-B3B2-464EF177FDDE"/></desktop5:ItemType></desktop4:FileExplorerContextMenus></desktop4:Extension>
+   </Extensions>
+  </Application>
+ </Applications>
+ <Capabilities><rescap:Capability Name="runFullTrust"/><rescap:Capability Name="unvirtualizedResources"/></Capabilities>
+</Package>

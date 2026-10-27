@@ -1,0 +1,81 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Benco
+#pragma code_page(65001)
+#include <windows.h>
+#include "resource.h"
+1 ICON "../assets/icon.ico"
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+STRINGTABLE
+BEGIN
+ IDS_MENU "Folder icon"
+ IDS_CHOOSE "Choose an icon…"
+ IDS_RESET "Restore default icon"
+ IDS_REFERENCE "Original icon"
+ IDS_COPY "Copy into folder"
+ IDS_APPLY "Apply"
+ IDS_TITLE_ONE "Folder icon — %s"
+ IDS_TITLE_MANY "Folder icon — %s folders"
+ IDS_ICO "Icons (*.ico)"
+ IDS_CONFIRM_TITLE "Replace the copied icon?"
+ IDS_CONFIRM_BODY "The following files will be replaced:\n\n%s"
+ IDS_REPLACE "Replace"
+ IDS_DELETE_TITLE "Delete the copied icon?"
+ IDS_DELETE_BODY "The following files copied into these folders will be deleted:\n\n%s"
+ IDS_DELETE "Delete"
+ IDS_ERROR "The folder icon could not be changed."
+ IDS_FAILURES "Some folders could not be updated:\n\n%s"
+ IDS_HELP "Right-click a folder and select Folder icon.\n\nYou can also drop folders onto this program or run:\nIconicFolders.exe --choose <folder> […]\nIconicFolders.exe --reset <folder> […]"
+ IDS_INVALID_ICO "Select a valid .ico file."
+ IDS_ENCODING "This desktop.ini encoding cannot represent the icon path. Copy the icon into the folder instead."
+ IDS_BUSY "This folder is being updated by another instance. Try again shortly."
+ IDS_UNSUPPORTED_ENCODING "Windows does not support this desktop.ini encoding. No changes were made. Convert it to UTF-16 LE before changing the icon."
+END
+LANGUAGE LANG_FRENCH, SUBLANG_FRENCH
+STRINGTABLE
+BEGIN
+ IDS_MENU "Icône du dossier"
+ IDS_CHOOSE "Choisir une icône…"
+ IDS_RESET "Rétablir l’icône par défaut"
+ IDS_REFERENCE "Icône d’origine"
+ IDS_COPY "Copie dans le dossier"
+ IDS_APPLY "Appliquer"
+ IDS_TITLE_ONE "Icône du dossier — %s"
+ IDS_TITLE_MANY "Icône du dossier — %s dossiers"
+ IDS_ICO "Icônes (*.ico)"
+ IDS_CONFIRM_TITLE "Remplacer l’icône recopiée ?"
+ IDS_CONFIRM_BODY "Les fichiers suivants vont être remplacés :\n\n%s"
+ IDS_REPLACE "Remplacer"
+ IDS_DELETE_TITLE "Supprimer l’icône recopiée ?"
+ IDS_DELETE_BODY "Les fichiers suivants, recopiés dans ces dossiers, vont être supprimés :\n\n%s"
+ IDS_DELETE "Supprimer"
+ IDS_ERROR "L’icône du dossier n’a pas pu être modifiée."
+ IDS_FAILURES "Certains dossiers n’ont pas pu être modifiés :\n\n%s"
+ IDS_HELP "Faites un clic droit sur un dossier, puis choisissez Icône du dossier.\n\nVous pouvez aussi déposer des dossiers sur ce programme ou lancer :\nIconicFolders.exe --choose <dossier> […]\nIconicFolders.exe --reset <dossier> […]"
+ IDS_INVALID_ICO "Choisissez un fichier .ico valide."
+ IDS_ENCODING "L’encodage de ce desktop.ini ne permet pas d’écrire le chemin de l’icône. Recopiez plutôt l’icône dans le dossier."
+ IDS_BUSY "Une autre instance modifie ce dossier. Réessayez dans un instant."
+ IDS_UNSUPPORTED_ENCODING "Windows ne prend pas en charge l’encodage de ce desktop.ini. Aucune modification n’a été faite. Convertissez-le en UTF-16 LE avant de changer l’icône."
+END
+LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
+1 VERSIONINFO
+FILEVERSION 1,0,1,0
+PRODUCTVERSION 1,0,1,0
+FILETYPE VFT_APP
+BEGIN
+ BLOCK "StringFileInfo"
+ BEGIN
+  BLOCK "040904B0"
+  BEGIN
+   VALUE "CompanyName", "IconicFolders"
+   VALUE "FileDescription", "IconicFolders"
+   VALUE "FileVersion", "1.0.1"
+   VALUE "ProductName", "IconicFolders"
+   VALUE "ProductVersion", "1.0.1"
+   VALUE "LegalCopyright", "Copyright (C) 2026 Benco"
+  END
+ END
+ BLOCK "VarFileInfo"
+ BEGIN
+  VALUE "Translation", 0x0409, 1200
+ END
+END

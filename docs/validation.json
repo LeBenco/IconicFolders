@@ -1,0 +1,54 @@
+{
+  "application": "IconicFolders 1.0.1",
+  "generatedUtc": "2026-10-27T08:44:01.4771230Z",
+  "platform": "Windows 10 Pro N 22H2 x64, build 19045",
+  "compiler": "MSVC 19.44.35229, C++20, /W4 /WX",
+  "sdk": "10.0.19041.0",
+  "nsis": "3.13",
+  "wil": "v1.0.260126.7, cbf677fb0a942557d08fd129f4c106a76247b2ec",
+  "addressSanitizer": "Microsoft ASan 14.44.35226, private installation under tools/asan",
+  "releaseTests": {
+    "failed": 0,
+    "passed": 27
+  },
+  "asanTests": {
+    "passed": 27,
+    "positiveControl": "Intentional heap-buffer-overflow detected in ASanProbe; expected failure, not an application defect",
+    "failed": 0
+  },
+  "fuzz": {
+    "type": "INI byte corpus",
+    "cases": 5000
+  },
+  "integration": {
+    "registeredCOM": "PASS",
+    "installedPayloadHashes": "PASS on 1.0.0",
+    "languages": "PASS: French, English, fr-CA, English fallback for unsupported language",
+    "attributesAndRollback": "PASS",
+    "realHelper": "PASS: two Unicode folder names",
+    "silentInstall": "PASS on 1.0.0; not repeated on 1.0.1 because an existing user installation must be preserved",
+    "nativeShellMenu": "PASS: one root entry with submenu",
+    "silentUninstall": "PASS on 1.0.0 including loaded-DLL cleanup; existing user installation preserved for 1.0.1",
+    "cache": "PASS: rendered pixels differ for same basename in two folders; overwrite refreshes pixels",
+    "loadedDllUninstall": "PASS on 1.0.0: exact deferred command tested after freeing the DLL"
+  },
+  "filespacer": "Checked active threads before shared-environment tests; both campaigns idle before installer and native Shell integration tests",
+  "limits": [
+    "Visual capture failed with window capture timed out. The mode captions were shortened; their rendered layout was not visually verified. Native dialog controls and FR/EN resources pass automated tests.",
+    "Windows 11 was not available for execution. The standard unsigned installer uses the classic menu (Show more options on Windows 11).",
+    "Sparse package source and build tool supplied; production signature and modern Windows 11 deployment not validated. No trust certificate is installed.",
+    "Deferred cleanup was tested by running the exact scheduled command after freeing the DLL; no actual sign-out was performed."
+  ],
+  "installer": {
+    "sha256": "EB230A72AE6B63E7404F9E64EC2A4428243B9481D3612775E92391A4A2D6C7B3",
+    "signature": "unsigned",
+    "filename": "IconicFolders-1.0.1-x64-Setup.exe"
+  },
+  "logs": [
+    "test-results/release-final.log",
+    "test-results/asan-final.log",
+    "test-results/installer-final.log",
+    "test-results/asan-positive-control.log"
+  ],
+  "sourceLicense": "GPL-3.0-only, Copyright (C) 2026 Benco; WIL retains MIT license and third-party notices"
+}

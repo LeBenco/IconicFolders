@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Benco
+#pragma once
+#define IDS_MENU 100
+#define IDS_CHOOSE 101
+#define IDS_RESET 102
+#define IDS_REFERENCE 103
+#define IDS_COPY 104
+#define IDS_APPLY 105
+#define IDS_TITLE_ONE 106
+#define IDS_TITLE_MANY 107
+#define IDS_ICO 108
+#define IDS_CONFIRM_TITLE 109
+#define IDS_CONFIRM_BODY 110
+#define IDS_REPLACE 111
+#define IDS_DELETE_TITLE 112
+#define IDS_DELETE_BODY 113
+#define IDS_DELETE 114
+#define IDS_ERROR 115
+#define IDS_FAILURES 116
+#define IDS_HELP 117
+#define IDS_INVALID_ICO 118
+#define IDS_ENCODING 119
+#define IDS_BUSY 120
+#define IDS_UNSUPPORTED_ENCODING 123

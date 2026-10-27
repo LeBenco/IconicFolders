@@ -1,0 +1,7 @@
+/build/
+/dist/
+/tools/asan/
+/external/wil-source/
+*.user
+*.pfx
+*.cer

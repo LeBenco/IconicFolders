@@ -1,0 +1,36 @@
+Generated .\assets\icon.ico: ten sizes, RGBA pixels verified; PNG exports updated.
+core.cpp
+ui.cpp
+Génération de code en cours...
+main.cpp
+shell.cpp
+   Création de la bibliothèque .\build\Release\IconicFoldersShell.lib et de l'objet .\build\Release\IconicFoldersShell.exp
+tests.cpp
+PASS INI preserves unrelated bytes, comments, blank lines, sections and CRLF
+PASS INI reset preserves LF and all unrelated text
+PASS duplicate shell sections and keys cannot override new icon
+PASS UTF16 LE/BE, UTF8 BOM, ANSI and Unicode paths
+PASS new desktop.ini is Unicode and append handles missing final newline
+PASS legacy icon reading and environment references
+PASS ICO validation rejects truncated tables, invalid images and wrong extensions
+PASS BOM-less ASCII INI uses Windows ANSI for accented source paths
+PASS non-native INI encodings are refused without touching files
+PASS reference writes only desktop.ini, required attributes, original preserved
+PASS reset reference never deletes source or other desktop.ini settings
+PASS copy is relative and hidden, fixed basename, confirmation enforced
+PASS copy reset cancellation and confirmed deletion
+PASS reserved-name collision is never overwritten silently
+PASS switch copy to reference requires approval and removes managed copy
+PASS absolute reference with reserved basename is never deleted
+PASS unknown relative icon and unrelated reserved file survive reset
+PASS failure on locked INI preserves previous icon and content
+PASS failed deletion rolls back desktop.ini and retains copied file
+PASS same file chosen in copy mode remains hidden without corruption
+PASS copied icon survives folder rename and long Unicode paths
+PASS same basename in two folders refers to different local files
+PASS Windows argument quoting roundtrip
+PASS native French and English resources
+PASS native file dialog supports compact radio controls
+PASS COM shell factory, submenu enumeration and unload lifetime
+PASS malformed INI fuzz corpus does not corrupt unrelated data
+RESULT 27 tests passed

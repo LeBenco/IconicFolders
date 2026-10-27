@@ -1,0 +1,6 @@
+PASS native Shell context menu contains one IconicFolders submenu
+PASS installed COM activation and real helper invocation (two Unicode folders)
+PASS silent NSIS installation, menu and COM registration
+PASS loaded DLL is retained and per-user sign-in cleanup is scheduled
+PASS deferred cleanup removes DLL and its RunOnce value after release
+PASS silent NSIS uninstallation, registry and payload cleanup

@@ -1,0 +1,18 @@
+PASS 16px: exact RGBA match with approved manual master
+PASS 20px: exact RGBA match with approved manual master
+PASS 24px: exact RGBA match with approved manual master
+PASS 32px: exact RGBA match with approved manual master
+PASS 40px: exact RGBA match with approved manual master
+PASS 48px: exact RGBA match with approved manual master
+PASS 64px: full-SVG pixels unchanged
+PASS 96px: full-SVG pixels unchanged
+PASS 128px: full-SVG pixels unchanged
+PASS 256px: full-SVG pixels unchanged
+PASS icon.png: full-SVG pixels unchanged
+PASS logo44.png: full-SVG pixels unchanged
+PASS logo150.png: full-SVG pixels unchanged
+PASS ICO: nine 32-bit DIB frames, one 256px PNG frame
+PASS repeat generation: identical ICO SHA256 in isolated and production exports
+PASS incremental build: unchanged exports reused
+PASS source SVG: unchanged
+Toolchain: Inkscape 1.4.4; bundled Python 3.12.12; Pillow 12.0.0; ImageMagick 7.1.2
