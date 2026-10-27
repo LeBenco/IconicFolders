@@ -1,0 +1,5 @@
+{"file": "IconicFolders.exe", "matching_icon_groups": [1], "images": 10, "embedded_icon": "exact byte match"}
+{"file": "IconicFoldersShell.dll", "matching_icon_groups": [1], "images": 10, "embedded_icon": "exact byte match"}
+{"file": "IconicFolders-1.0.1-x64-Setup.exe", "matching_icon_groups": [103], "images": 10, "embedded_icon": "exact byte match"}
+{"file": "Uninstall.exe", "matching_icon_groups": [103], "images": 10, "embedded_icon": "exact byte match"}
+PASS NSIS payload: binaries, README and all licenses match build inputs

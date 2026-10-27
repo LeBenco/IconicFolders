@@ -191,14 +191,14 @@ int wmain(int argc,wchar_t** argv) {
             for(const auto& v:cases) {auto command=L"test.exe "+quoteArg(v);int count=0;auto raw=CommandLineToArgvW(command.c_str(),&count);require(raw&&count==2&&v==raw[1],"quoting failed");LocalFree(raw);}
         });
         check("native French and English resources",[]{
-            SetThreadUILanguage(MAKELANGID(LANG_FRENCH,SUBLANG_FRENCH));require(tr(IDS_COPY)==L"Recopier l’icône dans le dossier","French missing");
-            SetThreadUILanguage(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US));require(tr(IDS_COPY)==L"Copy the icon into the folder","English missing");
-            SetThreadUILanguage(MAKELANGID(LANG_SPANISH,SUBLANG_SPANISH));require(tr(IDS_COPY)==L"Copy the icon into the folder","English fallback missing");
-            SetThreadUILanguage(MAKELANGID(LANG_FRENCH,SUBLANG_FRENCH_CANADIAN));require(tr(IDS_COPY)==L"Recopier l’icône dans le dossier","French regional fallback missing");
+            SetThreadUILanguage(MAKELANGID(LANG_FRENCH,SUBLANG_FRENCH));require(tr(IDS_COPY)==L"Copie dans le dossier","French missing");
+            SetThreadUILanguage(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US));require(tr(IDS_COPY)==L"Copy into folder","English missing");
+            SetThreadUILanguage(MAKELANGID(LANG_SPANISH,SUBLANG_SPANISH));require(tr(IDS_COPY)==L"Copy into folder","English fallback missing");
+            SetThreadUILanguage(MAKELANGID(LANG_FRENCH,SUBLANG_FRENCH_CANADIAN));require(tr(IDS_COPY)==L"Copie dans le dossier","French regional fallback missing");
             SetThreadUILanguage(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US));
         });
         check("native file dialog supports compact radio controls",[]{
-            wil::com_ptr<IFileOpenDialog> dialog;THROW_IF_FAILED(CoCreateInstance(CLSID_FileOpenDialog,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&dialog)));auto c=dialog.query<IFileDialogCustomize>();THROW_IF_FAILED(c->AddRadioButtonList(1));THROW_IF_FAILED(c->AddControlItem(1,2,L"Use the original icon"));THROW_IF_FAILED(c->AddControlItem(1,3,L"Copy the icon into the folder"));THROW_IF_FAILED(c->SetSelectedControlItem(1,3));DWORD selected=0;THROW_IF_FAILED(c->GetSelectedControlItem(1,&selected));require(selected==3,"radio state");
+            wil::com_ptr<IFileOpenDialog> dialog;THROW_IF_FAILED(CoCreateInstance(CLSID_FileOpenDialog,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&dialog)));auto c=dialog.query<IFileDialogCustomize>();auto reference=tr(IDS_REFERENCE),copy=tr(IDS_COPY);THROW_IF_FAILED(c->AddRadioButtonList(1));THROW_IF_FAILED(c->AddControlItem(1,2,reference.c_str()));THROW_IF_FAILED(c->AddControlItem(1,3,copy.c_str()));THROW_IF_FAILED(c->SetSelectedControlItem(1,3));DWORD selected=0;THROW_IF_FAILED(c->GetSelectedControlItem(1,&selected));require(selected==3,"radio state");
         });
         check("COM shell factory, submenu enumeration and unload lifetime",[&]{
             wil::unique_hmodule dll(LoadLibraryW((output/L"IconicFoldersShell.dll").c_str()));require(!!dll,"DLL load");

@@ -1,6 +1,6 @@
 {
   "application": "IconicFolders 1.0.1",
-  "generatedUtc": "2026-10-27T08:59:01.9980445Z",
+  "generatedUtc": "2026-10-27T10:31:40.4705053Z",
   "platform": "Windows 10 Pro N 22H2 x64, build 19045",
   "compiler": "MSVC 19.44.35229, C++20, /W4 /WX",
   "sdk": "10.0.19041.0",
@@ -32,15 +32,14 @@
     "cache": "PASS: rendered pixels differ for same basename in two folders; overwrite refreshes pixels",
     "loadedDllUninstall": "PASS on 1.0.0: exact deferred command tested after freeing the DLL"
   },
-  "filespacer": "Checked active threads before shared-environment tests; both campaigns idle before installer and native Shell integration tests",
   "limits": [
-    "Full mode captions retained as requested. IFileDialogCustomize exposes no supported sizing API for the radio labels. Responsive layout remains under discussion; visual capture failed with window capture timed out.",
+    "Mode captions shortened in French and English to fit the native radio controls. No custom sizing, subclassing or internal controls used. Resource loading and native radio state tested; no live visual check performed for this update.",
     "Windows 11 was not available for execution. The standard unsigned installer uses the classic menu (Show more options on Windows 11).",
     "Sparse package source and build tool supplied; production signature and modern Windows 11 deployment not validated. No trust certificate is installed.",
     "Deferred cleanup was tested by running the exact scheduled command after freeing the DLL; no actual sign-out was performed."
   ],
   "installer": {
-    "sha256": "61F1702130AA7F6DE98562EF04371D5F3A76A5F14D1ED9D4D1987C6B9B298773",
+    "sha256": "F8BF15AAFBE762F5F8355F23E3B025125E0F709C86B7A5C5A0B82AD366E52F10",
     "signature": "unsigned",
     "filename": "IconicFolders-1.0.1-x64-Setup.exe"
   },
@@ -48,7 +47,21 @@
     "test-results/release-final.log",
     "test-results/asan-final.log",
     "test-results/installer-final.log",
-    "test-results/asan-positive-control.log"
+    "test-results/asan-positive-control.log",
+    "test-results/icon-resources.log"
   ],
-  "sourceLicense": "GPL-3.0-only, Copyright (C) 2026 Benco; WIL retains MIT license and third-party notices"
+  "sourceLicense": "GPL-3.0-only, Copyright (C) 2026 Benco; WIL and Microsoft Fluent Emoji retain their MIT licenses and notices",
+  "icon": {
+    "generatedUtc": "2026-10-27T10:21:22.0947228Z",
+    "style": "Windows 11 yellow gradients, right-side tab, larger blue pencil, white cone, gray ferrule, enlarged graphite tip near center of folder front",
+    "source": "assets/icon.svg",
+    "pencilLicense": "Microsoft Fluent Emoji Pencil (Flat), MIT; notice included in local installer",
+    "checks": [
+      "ICO: 16,20,24,32,40,48,64,96,128,256 pixels, all with alpha transparency",
+      "Visual review on light/dark backgrounds and at actual small sizes",
+      "Exact icon image bytes verified in executable, shell DLL, installer and extracted uninstaller",
+      "NSIS payload and Microsoft icon license verified without installing",
+      "Release: 27 tests passed; ASan: 27 tests passed and positive control detected its intentional overflow"
+    ]
+  }
 }
