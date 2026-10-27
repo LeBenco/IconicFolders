@@ -1,0 +1,36 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+<!-- Copyright (C) 2026 Benco. Pencil paths: Copyright (c) Microsoft Corporation, MIT. -->
+<!-- See SOURCES.md and third-party/LICENSE-Microsoft-Fluent-Emoji.txt. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="folder-back" x1="18" y1="40" x2="230" y2="40" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FEBE18"/>
+      <stop offset="1" stop-color="#EFB122"/>
+    </linearGradient>
+    <linearGradient id="folder-front" x1="73" y1="42" x2="176" y2="220" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFE69C"/>
+      <stop offset=".15" stop-color="#FFE495"/>
+      <stop offset=".35" stop-color="#FFDE82"/>
+      <stop offset=".6" stop-color="#FFD663"/>
+      <stop offset=".87" stop-color="#FFCA39"/>
+      <stop offset=".88" stop-color="#FFCA38"/>
+    </linearGradient>
+    <linearGradient id="pencil-body" x1="12" y1="12" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4A84B6"/>
+      <stop offset=".46" stop-color="#4A84B6"/>
+      <stop offset=".47" stop-color="#2B4D89"/>
+      <stop offset="1" stop-color="#2B4D89"/>
+    </linearGradient>
+  </defs>
+  <!-- Mirrored folder silhouette: the raised tab is on the right. -->
+  <path d="M18 95V76C18 65 25 58 36 58H117C125 58 130 56 136 52L157 37C162 33 167 32 174 32H212C223 32 230 39 230 50V95Z" fill="url(#folder-back)"/>
+  <rect x="18" y="78" width="212" height="146" rx="15" fill="url(#folder-front)"/>
+  <!-- Microsoft Fluent Emoji Pencil / Flat; blue body, white cone and enlarged graphite tip. -->
+  <g transform="translate(111 18) scale(4.6)">
+    <path d="M16.6352 7.58545L21.1451 10.1198L23.7063 14.6565L9.36953 28.9933L4.50768 26.4228L2.29846 21.9222L16.6352 7.58545Z" fill="url(#pencil-body)"/>
+    <path d="M1.3895 28.0652L1.97165 29.377L3.22663 29.9024L9.35704 28.9771L2.31475 21.9348L1.3895 28.0652Z" fill="#FFFFFF"/>
+    <path d="M1.06291 30.2289L1.62624 26.49656L4.79527 29.66559Z" fill="#402A32"/>
+    <path d="M22.2761 1.94443C23.0572 1.16338 24.3235 1.16338 25.1045 1.94443L29.3472 6.18707C30.1282 6.96812 30.1282 8.23445 29.3472 9.0155L25.8117 12.551L21.2845 10.2869L18.7406 5.47996L22.2761 1.94443Z" fill="#F92F60"/>
+    <path d="M18.7406 5.47998L25.8117 12.551L23.6903 14.6724L16.6193 7.6013L18.7406 5.47998Z" fill="#D3D3D3"/>
+  </g>
+</svg>
