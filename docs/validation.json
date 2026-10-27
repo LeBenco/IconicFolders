@@ -1,6 +1,6 @@
 {
   "application": "IconicFolders 1.0.1",
-  "generatedUtc": "2026-10-27T08:44:01.4771230Z",
+  "generatedUtc": "2026-10-27T08:59:01.9980445Z",
   "platform": "Windows 10 Pro N 22H2 x64, build 19045",
   "compiler": "MSVC 19.44.35229, C++20, /W4 /WX",
   "sdk": "10.0.19041.0",
@@ -34,13 +34,13 @@
   },
   "filespacer": "Checked active threads before shared-environment tests; both campaigns idle before installer and native Shell integration tests",
   "limits": [
-    "Visual capture failed with window capture timed out. The mode captions were shortened; their rendered layout was not visually verified. Native dialog controls and FR/EN resources pass automated tests.",
+    "Full mode captions retained as requested. IFileDialogCustomize exposes no supported sizing API for the radio labels. Responsive layout remains under discussion; visual capture failed with window capture timed out.",
     "Windows 11 was not available for execution. The standard unsigned installer uses the classic menu (Show more options on Windows 11).",
     "Sparse package source and build tool supplied; production signature and modern Windows 11 deployment not validated. No trust certificate is installed.",
     "Deferred cleanup was tested by running the exact scheduled command after freeing the DLL; no actual sign-out was performed."
   ],
   "installer": {
-    "sha256": "EB230A72AE6B63E7404F9E64EC2A4428243B9481D3612775E92391A4A2D6C7B3",
+    "sha256": "61F1702130AA7F6DE98562EF04371D5F3A76A5F14D1ED9D4D1987C6B9B298773",
     "signature": "unsigned",
     "filename": "IconicFolders-1.0.1-x64-Setup.exe"
   },

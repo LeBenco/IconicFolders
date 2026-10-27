@@ -191,10 +191,10 @@ int wmain(int argc,wchar_t** argv) {
             for(const auto& v:cases) {auto command=L"test.exe "+quoteArg(v);int count=0;auto raw=CommandLineToArgvW(command.c_str(),&count);require(raw&&count==2&&v==raw[1],"quoting failed");LocalFree(raw);}
         });
         check("native French and English resources",[]{
-            SetThreadUILanguage(MAKELANGID(LANG_FRENCH,SUBLANG_FRENCH));require(tr(IDS_COPY)==L"Copie dans le dossier","French missing");
-            SetThreadUILanguage(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US));require(tr(IDS_COPY)==L"Copy into folder","English missing");
-            SetThreadUILanguage(MAKELANGID(LANG_SPANISH,SUBLANG_SPANISH));require(tr(IDS_COPY)==L"Copy into folder","English fallback missing");
-            SetThreadUILanguage(MAKELANGID(LANG_FRENCH,SUBLANG_FRENCH_CANADIAN));require(tr(IDS_COPY)==L"Copie dans le dossier","French regional fallback missing");
+            SetThreadUILanguage(MAKELANGID(LANG_FRENCH,SUBLANG_FRENCH));require(tr(IDS_COPY)==L"Recopier l’icône dans le dossier","French missing");
+            SetThreadUILanguage(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US));require(tr(IDS_COPY)==L"Copy the icon into the folder","English missing");
+            SetThreadUILanguage(MAKELANGID(LANG_SPANISH,SUBLANG_SPANISH));require(tr(IDS_COPY)==L"Copy the icon into the folder","English fallback missing");
+            SetThreadUILanguage(MAKELANGID(LANG_FRENCH,SUBLANG_FRENCH_CANADIAN));require(tr(IDS_COPY)==L"Recopier l’icône dans le dossier","French regional fallback missing");
             SetThreadUILanguage(MAKELANGID(LANG_ENGLISH,SUBLANG_ENGLISH_US));
         });
         check("native file dialog supports compact radio controls",[]{
