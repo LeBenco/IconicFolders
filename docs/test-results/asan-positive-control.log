@@ -1,33 +1,33 @@
 =================================================================
-==57560==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x11cb65aa0261 at pc 0x7ff6484810a4 bp 0x002a9f75fde0 sp 0x002a9f75fde8
-WRITE of size 1 at 0x11cb65aa0261 thread T0
-    #0 0x7ff6484810a3 in main .\tests\asan-probe.cpp:7
-    #1 0x7ff648483263 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
-    #2 0x7ff84f0c7123 in BaseThreadInitThunk+0x13 (C:\WINDOWS\System32\KERNEL32.DLL+0x180017123)
-    #3 0x7ff85107cc90 in RtlUserThreadStart+0x20 (C:\WINDOWS\SYSTEM32\ntdll.dll+0x18004cc90)
+==47032==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x121cabfa0261 at pc 0x7ff6e10d10a4 bp 0x0046603dfa70 sp 0x0046603dfa78
+WRITE of size 1 at 0x121cabfa0261 thread T0
+    #0 0x7ff6e10d10a3 in main .\tests\asan-probe.cpp:7
+    #1 0x7ff6e10d3263 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #2 0x7ffed1f87123 in BaseThreadInitThunk+0x13 (C:\WINDOWS\System32\KERNEL32.DLL+0x180017123)
+    #3 0x7ffed3c9cc90 in RtlUserThreadStart+0x20 (C:\WINDOWS\SYSTEM32\ntdll.dll+0x18004cc90)
 
-0x11cb65aa0261 is located 9 bytes after 8-byte region [0x11cb65aa0250,0x11cb65aa0258)
+0x121cabfa0261 is located 9 bytes after 8-byte region [0x121cabfa0250,0x121cabfa0258)
 allocated by thread T0 here:
-    #0 0x7fff31dbd638 in _asan_wrap__CrtIsValidHeapPointer+0xcc8 (.\build\Asan\clang_rt.asan_dynamic-x86_64.dll+0x18004d638)
-    #1 0x7ff648482203 in malloc D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_malloc_win_thunk.cpp:100
-    #2 0x7ff64848104d in main .\tests\asan-probe.cpp:6
-    #3 0x7ff648483263 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
-    #4 0x7ff84f0c7123 in BaseThreadInitThunk+0x13 (C:\WINDOWS\System32\KERNEL32.DLL+0x180017123)
-    #5 0x7ff85107cc90 in RtlUserThreadStart+0x20 (C:\WINDOWS\SYSTEM32\ntdll.dll+0x18004cc90)
+    #0 0x7ffda140d638 in _asan_wrap__CrtIsValidHeapPointer+0xcc8 (.\build\Asan\clang_rt.asan_dynamic-x86_64.dll+0x18004d638)
+    #1 0x7ff6e10d2203 in malloc D:\a\_work\1\s\src\vctools\asan\llvm\compiler-rt\lib\asan\asan_malloc_win_thunk.cpp:100
+    #2 0x7ff6e10d104d in main .\tests\asan-probe.cpp:6
+    #3 0x7ff6e10d3263 in __scrt_common_main_seh D:\a\_work\1\s\src\vctools\crt\vcstartup\src\startup\exe_common.inl:288
+    #4 0x7ffed1f87123 in BaseThreadInitThunk+0x13 (C:\WINDOWS\System32\KERNEL32.DLL+0x180017123)
+    #5 0x7ffed3c9cc90 in RtlUserThreadStart+0x20 (C:\WINDOWS\SYSTEM32\ntdll.dll+0x18004cc90)
 
 SUMMARY: AddressSanitizer: heap-buffer-overflow .\tests\asan-probe.cpp:7 in main
 Shadow bytes around the buggy address:
-  0x11cb65a9ff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-  0x11cb65aa0000: fa fa fd fd fa fa 00 03 fa fa 00 06 fa fa 00 03
-  0x11cb65aa0080: fa fa 00 05 fa fa 00 06 fa fa 00 05 fa fa 00 05
-  0x11cb65aa0100: fa fa 00 07 fa fa 06 fa fa fa 00 00 fa fa 00 03
-  0x11cb65aa0180: fa fa 00 06 fa fa 00 02 fa fa 00 06 fa fa 00 07
-=>0x11cb65aa0200: fa fa 00 02 fa fa 00 07 fa fa 00 fa[fa]fa fd fa
-  0x11cb65aa0280: fa fa fd fa fa fa 04 fa fa fa 00 fa fa fa fd fa
-  0x11cb65aa0300: fa fa 04 fa fa fa 01 fa fa fa 01 fa fa fa 00 04
-  0x11cb65aa0380: fa fa 04 fa fa fa 04 fa fa fa 04 fa fa fa 04 fa
-  0x11cb65aa0400: fa fa 04 fa fa fa 04 fa fa fa 00 00 fa fa 04 fa
-  0x11cb65aa0480: fa fa 00 fa fa fa 00 fa fa fa 00 fa fa fa 00 fa
+  0x121cabf9ff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+  0x121cabfa0000: fa fa fd fd fa fa 00 03 fa fa 00 06 fa fa 00 03
+  0x121cabfa0080: fa fa 00 05 fa fa 00 06 fa fa 00 05 fa fa 00 05
+  0x121cabfa0100: fa fa 00 07 fa fa 06 fa fa fa 00 00 fa fa 00 03
+  0x121cabfa0180: fa fa 00 06 fa fa 00 02 fa fa 00 06 fa fa 00 07
+=>0x121cabfa0200: fa fa 00 02 fa fa 00 07 fa fa 00 fa[fa]fa fd fa
+  0x121cabfa0280: fa fa fd fa fa fa 04 fa fa fa 00 fa fa fa fd fa
+  0x121cabfa0300: fa fa 04 fa fa fa 01 fa fa fa 01 fa fa fa 00 04
+  0x121cabfa0380: fa fa 00 04 fa fa 00 04 fa fa 00 04 fa fa 04 fa
+  0x121cabfa0400: fa fa 04 fa fa fa 04 fa fa fa 04 fa fa fa 00 00
+  0x121cabfa0480: fa fa 00 fa fa fa 04 fa fa fa 00 fa fa fa 00 fa
 Shadow byte legend (one shadow byte represents 8 application bytes):
   Addressable:           00
   Partially addressable: 01 02 03 04 05 06 07 
@@ -47,4 +47,4 @@ Shadow byte legend (one shadow byte represents 8 application bytes):
   ASan internal:           fe
   Left alloca redzone:     ca
   Right alloca redzone:    cb
-==57560==ABORTING
+==47032==ABORTING

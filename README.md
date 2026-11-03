@@ -71,9 +71,22 @@ without BOM. UTF-8 BOM and UTF-16 BE are refused without modifying the file:
 silently rewriting the entire file would violate preservation. An ANSI file that
 cannot represent a new path is left intact; use copy mode in that case. New INI
 files are UTF-16 LE with BOM. Hidden/system flags are applied to `desktop.ini`,
-and the folder receives the read-only Shell customization flag. Other attributes
-are retained. Reset preserves the INI and folder flags because other Shell
-customizations may use them.
+and the folder receives the read-only and system Shell customization flags
+(equivalent to `attrib +r +s` on the folder). Other attributes are retained;
+the folder itself is not made hidden. Reset preserves the INI and folder flags
+because other Shell customizations may use them.
+
+Showing hidden files alone does not reveal `desktop.ini`: Explorer also hides
+protected operating system files. To inspect it, clear **Hide protected operating
+system files** in Folder Options, or use `Get-ChildItem -Force` in PowerShell.
+This applies to both reference and copy mode.
+
+Before changing an existing custom icon, the app captures its old Shell image
+location and index. After the file changes succeed and the INI handle is closed,
+`SHUpdateImage` invalidates that image, and `SHChangeNotify` refreshes the folder
+and its parent. This covers reference changes, reusing an icon path whose content
+has changed, overwriting a copy, and restoring the default icon. Shell clients
+process these notifications asynchronously; a repaint can take a short moment.
 
 ### App and preferences
 
@@ -149,6 +162,8 @@ Paths, registry keys and managed filenames are stable.
 ## References
 
 * [Microsoft: desktop.ini](https://learn.microsoft.com/windows/win32/shell/how-to-customize-folders-with-desktop-ini)
+* [Microsoft: SHUpdateImage](https://learn.microsoft.com/windows/win32/api/shlobj_core/nf-shlobj_core-shupdateimagew)
+* [Microsoft: SHChangeNotify](https://learn.microsoft.com/windows/win32/api/shlobj_core/nf-shlobj_core-shchangenotify)
 * [Microsoft: common file dialog](https://learn.microsoft.com/windows/win32/shell/common-file-dialog)
 * [Microsoft: Shell context menu and package identity](https://learn.microsoft.com/windows/apps/desktop/modernize/integrate-packaged-app-with-file-explorer)
 * [Microsoft: AddressSanitizer](https://learn.microsoft.com/cpp/sanitizers/asan)

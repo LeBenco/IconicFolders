@@ -1,4 +1,4 @@
-Generated .\assets\icon.ico: ten sizes, RGBA pixels verified; PNG exports updated.
+Icon assets are up to date.
 core.cpp
 ui.cpp
 Génération de code en cours...
@@ -15,7 +15,9 @@ PASS legacy icon reading and environment references
 PASS ICO validation rejects truncated tables, invalid images and wrong extensions
 PASS BOM-less ASCII INI uses Windows ANSI for accented source paths
 PASS non-native INI encodings are refused without touching files
+PASS Shell refreshes reference, copy and reset icons at small and large sizes
 PASS reference writes only desktop.ini, required attributes, original preserved
+PASS folder system flag preserves unrelated attributes and remains after reset
 PASS reset reference never deletes source or other desktop.ini settings
 PASS copy is relative and hidden, fixed basename, confirmation enforced
 PASS copy reset cancellation and confirmed deletion
@@ -33,4 +35,4 @@ PASS native French and English resources
 PASS native file dialog supports compact radio controls
 PASS COM shell factory, submenu enumeration and unload lifetime
 PASS malformed INI fuzz corpus does not corrupt unrelated data
-RESULT 27 tests passed
+RESULT 29 tests passed

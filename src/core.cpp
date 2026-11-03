@@ -247,14 +247,16 @@ void apply(const fs::path& input,const fs::path& source,Mode mode,bool overwrite
     THROW_WIN32_IF(ERROR_CANCELLED,removeOld&&!overwriteApproved);
     Snapshot oldIcon=(copy||removeOld||mode==Mode::Copy)?snapshot(iconPath):Snapshot{false,FILE_ATTRIBUTE_NORMAL,{}}; DWORD folderAttrs=attrs(folder);
     std::optional<CachedIcon> cache;
-    if((copy&&oldIcon.exists)||removeOld)cache.emplace(folder);
+    // Capture the old Shell cache entry before changing the INI or icon bytes.
+    // References can also reuse a path whose image has changed on disk.
+    if(!old.resource.empty()||(copy&&oldIcon.exists))cache.emplace(folder);
     bool changedIcon=false,changedIni=false;
     try {
         if(copy) { replace(iconPath,readFile(source,64*1024*1024),FILE_ATTRIBUTE_HIDDEN); changedIcon=true; }
         else if(mode==Mode::Copy) { THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(iconPath.c_str(),oldIcon.attributes|FILE_ATTRIBUTE_HIDDEN)); changedIcon=true; }
         unchanged(iniPath,oldIni);
         replace(iniPath,updated,(oldIni.exists?oldIni.attributes:0)|FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM); changedIni=true;
-        THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(folder.c_str(),folderAttrs|FILE_ATTRIBUTE_READONLY));
+        THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(folder.c_str(),folderAttrs|FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_SYSTEM));
         if(removeOld) { regular(iconPath); THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(iconPath.c_str(),oldIcon.attributes&~FILE_ATTRIBUTE_READONLY)); changedIcon=true; THROW_IF_WIN32_BOOL_FALSE(DeleteFileW(iconPath.c_str())); }
     } catch (...) {
         auto failure=std::current_exception();
@@ -262,6 +264,7 @@ void apply(const fs::path& input,const fs::path& source,Mode mode,bool overwrite
         if(changedIcon) restore(iconPath,oldIcon);
         SetFileAttributesW(folder.c_str(),folderAttrs); std::rethrow_exception(failure);
     }
+    iniLock.reset();
     if(cache)cache->refresh(); notify(folder);
 }
 void reset(const fs::path& input,bool deleteApproved) {
@@ -270,7 +273,7 @@ void reset(const fs::path& input,bool deleteApproved) {
     Ini ini(old.bytes);ini.requireShellEncoding(); auto info=infoFrom(folder,ini); if(info.resource.empty())return;
     auto iconPath=folder/ManagedIcon; bool remove=info.managed&&attrs(iconPath)!=INVALID_FILE_ATTRIBUTES;
     THROW_WIN32_IF(ERROR_CANCELLED,remove&&!deleteApproved); Snapshot icon=remove?snapshot(iconPath):Snapshot{false,FILE_ATTRIBUTE_NORMAL,{}};
-    std::optional<CachedIcon> cache;if(remove)cache.emplace(folder);
+    CachedIcon cache(folder);
     unchanged(iniPath,old);replace(iniPath,ini.update(std::nullopt),old.attributes|FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM);
     if(remove) {
         try {
@@ -280,12 +283,13 @@ void reset(const fs::path& input,bool deleteApproved) {
             auto failure=std::current_exception();SetFileAttributesW(iconPath.c_str(),icon.attributes);restore(iniPath,old);std::rethrow_exception(failure);
         }
     }
-    if(cache)cache->refresh(); notify(folder);
+    iniLock.reset();cache.refresh();notify(folder);
 }
 void notify(const fs::path& folder) {
     wil::unique_cotaskmem_ptr<ITEMIDLIST> item,parent;
     if(SUCCEEDED(SHParseDisplayName(folder.c_str(),nullptr,wil::out_param(item),0,nullptr))) {
         SHChangeNotify(SHCNE_ATTRIBUTES|SHCNE_UPDATEITEM,SHCNF_IDLIST|SHCNF_FLUSH,item.get(),nullptr);
+        SHChangeNotify(SHCNE_UPDATEDIR,SHCNF_IDLIST|SHCNF_FLUSH,item.get(),nullptr);
     }
     if(SUCCEEDED(SHParseDisplayName(folder.parent_path().c_str(),nullptr,wil::out_param(parent),0,nullptr))) {
         SHChangeNotify(SHCNE_UPDATEDIR,SHCNF_IDLIST|SHCNF_FLUSH,parent.get(),nullptr);

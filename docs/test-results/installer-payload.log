@@ -1,0 +1,5 @@
+PASS NSIS build: exit 0
+PASS installer payload: IconicFolders.exe matches validated Release build
+PASS installer payload: IconicFoldersShell.dll matches validated Release build
+PASS installer README matches corrected documentation
+Existing user installation preserved; no installation or uninstallation performed.

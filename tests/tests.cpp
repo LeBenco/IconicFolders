@@ -35,8 +35,8 @@ std::vector<unsigned char> ico(unsigned char color) {
     b[22]=40;b[26]=1;b[30]=2;b[34]=1;b[36]=32;b[42]=4;b[62]=color;b[63]=128;b[64]=200;b[65]=255; return b;
 }
 DWORD attributes(const fs::path& p) {return GetFileAttributesW(p.c_str());}
-std::vector<unsigned char> shellPixels(const fs::path& p) {
-    SHFILEINFOW info={}; require(SHGetFileInfoW(p.c_str(),0,&info,sizeof(info),SHGFI_ICON|SHGFI_LARGEICON)!=0,"Shell icon unavailable");wil::unique_hicon icon(info.hIcon);
+std::vector<unsigned char> shellPixels(const fs::path& p,UINT size=SHGFI_LARGEICON) {
+    SHFILEINFOW info={}; require(SHGetFileInfoW(p.c_str(),0,&info,sizeof(info),SHGFI_ICON|size)!=0,"Shell icon unavailable");wil::unique_hicon icon(info.hIcon);
     ICONINFO ii={};require(!!GetIconInfo(icon.get(),&ii),"GetIconInfo");wil::unique_hbitmap color(ii.hbmColor),mask(ii.hbmMask);
     BITMAP bitmap={};GetObjectW(color.get(),sizeof(bitmap),&bitmap);require(bitmap.bmWidth>0&&bitmap.bmHeight>0,"icon bitmap");
     BITMAPINFO bi={};bi.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);bi.bmiHeader.biWidth=bitmap.bmWidth;bi.bmiHeader.biHeight=-bitmap.bmHeight;bi.bmiHeader.biPlanes=1;bi.bmiHeader.biBitCount=32;bi.bmiHeader.biCompression=BI_RGB;
@@ -130,11 +130,44 @@ int wmain(int argc,wchar_t** argv) {
                 auto target=root/(L"unsupported-"+std::to_wstring(n++));fs::create_directory(target);writeFile(target/L"desktop.ini",original);fails([&]{apply(target,a,Mode::Copy,false);},UnsupportedIniEncoding);require(readFile(target/L"desktop.ini")==original&&!fs::exists(target/ManagedIcon),"unsupported encoding mutated");
             }
         });
+        check("Shell refreshes reference, copy and reset icons at small and large sizes",[&]{
+            auto target=root/L"cache transitions";fs::create_directory(target);
+            auto pixels=[](const fs::path& path) {return std::make_pair(shellPixels(path,SHGFI_SMALLICON),shellPixels(path));};
+            auto defaults=pixels(target),first=pixels(a),second=pixels(b);
+            require(defaults!=first&&first!=second,"cache test icons must differ");
+            auto expect=[&](const auto& expected,const char* detail) {
+                for(unsigned retry=0;retry<40&&pixels(target)!=expected;++retry)pump(50);
+                require(pixels(target)==expected,detail);
+            };
+            apply(target,a,Mode::Reference,false);expect(first,"first reference icon not refreshed");
+            apply(target,b,Mode::Reference,false);expect(second,"reference switch not refreshed");
+            reset(target,false);expect(defaults,"reference reset not refreshed");
+            auto changing=source/L"changing.ico";writeFile(changing,ico(32));
+            apply(target,changing,Mode::Reference,false);expect(first,"changing reference not displayed");
+            fs::remove(changing);writeFile(changing,ico(240));
+            apply(target,changing,Mode::Reference,false);expect(second,"same-path reference retains cached source image");
+            require(readFile(changing)==ico(240),"reference refresh modified source");
+            apply(target,a,Mode::Copy,false);expect(first,"reference to copy not refreshed");
+            apply(target,b,Mode::Copy,true);expect(second,"copy overwrite not refreshed");
+            apply(target,a,Mode::Reference,true);expect(first,"copy to reference not refreshed");
+            apply(target,b,Mode::Copy,false);expect(second,"second reference to copy not refreshed");
+            reset(target,true);expect(defaults,"copy reset not refreshed");
+            require(fs::exists(a)&&fs::exists(b)&&!fs::exists(target/ManagedIcon),"cache refresh deleted original or retained managed copy");
+        });
         auto folder=root/L"Dossier été";fs::create_directory(folder);
         check("reference writes only desktop.ini, required attributes, original preserved",[&]{
             apply(folder,a,Mode::Reference,false);auto info=inspect(folder);require(!info.managed&&info.source==fs::absolute(a),"reference wrong");
             require(!fs::exists(folder/ManagedIcon),"unwanted copy");require(readFile(a)==ico(32),"source changed");
-            require((attributes(folder/L"desktop.ini")&(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM))==(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM),"INI attrs");require(attributes(folder)&FILE_ATTRIBUTE_READONLY,"folder attrs");
+            require((attributes(folder/L"desktop.ini")&(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM))==(FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM),"INI attrs");require((attributes(folder)&(FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_SYSTEM))==(FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_SYSTEM),"folder lacks read-only/system customization attributes");
+        });
+        check("folder system flag preserves unrelated attributes and remains after reset",[&]{
+            auto target=root/L"attributes preserved";fs::create_directory(target);
+            require(!!SetFileAttributesW(target.c_str(),FILE_ATTRIBUTE_NOT_CONTENT_INDEXED),"set initial folder attributes");
+            apply(target,a,Mode::Reference,false);
+            DWORD applied=attributes(target);
+            require((applied&(FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_SYSTEM|FILE_ATTRIBUTE_NOT_CONTENT_INDEXED))==(FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_SYSTEM|FILE_ATTRIBUTE_NOT_CONTENT_INDEXED),"folder attributes lost");
+            require(!(applied&FILE_ATTRIBUTE_HIDDEN),"customized folder was hidden");
+            reset(target,false);require(attributes(target)==applied,"reset changed folder attributes");
         });
         check("reset reference never deletes source or other desktop.ini settings",[&]{
             reset(folder,false); require(inspect(folder).resource.empty(),"reset left icon");require(fs::exists(a),"source deleted");require(fs::exists(folder/L"desktop.ini"),"INI removed");
@@ -166,9 +199,9 @@ int wmain(int argc,wchar_t** argv) {
             wil::unique_handle lock(CreateFileW((folder/L"desktop.ini").c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,0,nullptr));require(!!lock,"test lock");fails([&]{apply(folder,b,Mode::Copy,true);});lock.reset();require(readFile(folder/L"desktop.ini")==before&&readFile(folder/ManagedIcon)==ico(32),"failure lost state");
         });
         check("failed deletion rolls back desktop.ini and retains copied file",[&]{
-            auto before=readFile(folder/L"desktop.ini");DWORD old=attributes(folder/ManagedIcon);
+            auto before=readFile(folder/L"desktop.ini");DWORD old=attributes(folder/ManagedIcon),oldIni=attributes(folder/L"desktop.ini"),oldFolder=attributes(folder);
             wil::unique_handle lock(CreateFileW((folder/ManagedIcon).c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,0,nullptr));require(!!lock,"test icon lock");fails([&]{reset(folder,true);});lock.reset();
-            require(readFile(folder/L"desktop.ini")==before&&readFile(folder/ManagedIcon)==ico(32),"delete failure lost state");require(attributes(folder/ManagedIcon)==old,"delete failure changed attributes");
+            require(readFile(folder/L"desktop.ini")==before&&readFile(folder/ManagedIcon)==ico(32),"delete failure lost state");require(attributes(folder/ManagedIcon)==old&&attributes(folder/L"desktop.ini")==oldIni&&attributes(folder)==oldFolder,"delete failure changed attributes");
         });
         check("same file chosen in copy mode remains hidden without corruption",[&]{
             apply(folder,folder/ManagedIcon,Mode::Copy,false);require(readFile(folder/ManagedIcon)==ico(32)&&inspect(folder).managed,"self copy corrupted");
