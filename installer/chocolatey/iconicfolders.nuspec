@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>iconicfolders</id>
+    <version>@VERSION@</version>
+    <title>IconicFolders</title>
+    <authors>Benco</authors>
+    <iconUrl>https://raw.githubusercontent.com/LeBenco/IconicFolders/v@VERSION@/assets/icon.png</iconUrl>
+    <projectUrl>https://github.com/LeBenco/IconicFolders</projectUrl>
+    <packageSourceUrl>https://github.com/LeBenco/IconicFolders/tree/main/installer/chocolatey</packageSourceUrl>
+    <projectSourceUrl>https://github.com/LeBenco/IconicFolders</projectSourceUrl>
+    <docsUrl>https://github.com/LeBenco/IconicFolders#usage</docsUrl>
+    <bugTrackerUrl>https://github.com/LeBenco/IconicFolders/issues</bugTrackerUrl>
+    <licenseUrl>https://github.com/LeBenco/IconicFolders/blob/v@VERSION@/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <summary>Change folder icons from the Windows context menu.</summary>
+    <description>IconicFolders customizes folder icons on Windows 10 and later (x64). Choose an image or icon file, reuse another folder's icon, or browse embedded icons from Windows and applications. Use the original icon by reference or keep a hidden copy inside the folder, and restore the default icon at any time. The interface is available in French and English.
+
+This package downloads the official GitHub installer, verifies its SHA-256 and installs for all users. Existing installation choices are preserved. Uninstalling leaves customized folders intact.</description>
+    <releaseNotes>https://github.com/LeBenco/IconicFolders/releases/tag/v@VERSION@</releaseNotes>
+    <tags>iconicfolders folder-icons customization windows explorer</tags>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

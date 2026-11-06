@@ -1,0 +1,130 @@
+name: Submit IconicFolders to Chocolatey
+
+# Automatic opt-in: IconicFolders-Distribution: winget,chocolatey in the tag annotation.
+# Manual dispatch can validate an existing release with dry_run before submission.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Published stable release tag (for example v1.1.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Validate the package and real installation without submitting it'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: chocolatey-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  selection:
+    if: github.event_name == 'workflow_dispatch' || (!github.event.release.draft && !github.event.release.prerelease)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      enabled: ${{ steps.selection.outputs.enabled }}
+      tag: ${{ steps.selection.outputs.tag }}
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      DISTRIBUTION_CHANNEL: chocolatey
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Test distribution selection
+        run: node --test .github/scripts/release-distribution.test.mjs
+      - name: Select automatic distribution or the explicit manual request
+        id: selection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/release-distribution.mjs select
+
+  submit:
+    needs: selection
+    if: needs.selection.outputs.enabled == 'true'
+    runs-on: windows-2022
+    timeout-minutes: 20
+    env:
+      RELEASE_TAG: ${{ needs.selection.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Test package generation
+        shell: cmd
+        run: node --test .github/scripts/chocolatey.test.mjs .github/scripts/winget.test.mjs
+      - name: Prepare the package from verified public release assets
+        id: prepare
+        shell: cmd
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/chocolatey.mjs
+      - name: Build the Chocolatey package
+        id: package
+        shell: pwsh
+        run: |
+          choco pack build/chocolatey/iconicfolders/iconicfolders.nuspec --output-directory build/chocolatey --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Chocolatey packaging failed.' }
+      - name: Preserve the package for review
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: chocolatey-${{ env.RELEASE_TAG }}
+          path: build/chocolatey
+          if-no-files-found: error
+      - name: Smoke test the real installation on the disposable runner
+        id: smoke
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ steps.prepare.outputs.version }}
+        run: |
+          choco install iconicfolders --version "$env:PACKAGE_VERSION" --source "$env:GITHUB_WORKSPACE/build/chocolatey" --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Chocolatey installation failed.' }
+          $installed = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\IconicFolders'
+          if ($installed.DisplayVersion -cne $env:PACKAGE_VERSION -or !(Test-Path -LiteralPath (Join-Path $installed.InstallLocation 'IconicFolders.exe') -PathType Leaf)) {
+            throw 'The installed IconicFolders version or executable does not match the package.'
+          }
+          if (!(Test-Path 'HKLM:\SOFTWARE\Classes\Directory\shell\IconicFolders') -or
+              !(Test-Path 'HKLM:\SOFTWARE\Classes\CLSID\{75F4D684-8623-4CE1-B3B2-464EF177FDDE}\InprocServer32')) {
+            throw 'The machine-wide context menu was not registered.'
+          }
+      - name: Smoke test uninstallation and clean up the runner
+        if: always() && steps.smoke.outcome != 'skipped' && steps.smoke.outcome != ''
+        shell: pwsh
+        run: |
+          choco uninstall iconicfolders --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Chocolatey uninstallation failed.' }
+          if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\IconicFolders') {
+            throw 'IconicFolders remains registered after uninstallation.'
+          }
+          if ((Test-Path 'HKLM:\SOFTWARE\Classes\Directory\shell\IconicFolders') -or
+              (Test-Path 'HKLM:\SOFTWARE\Classes\CLSID\{75F4D684-8623-4CE1-B3B2-464EF177FDDE}')) {
+            throw 'The machine-wide context menu remains after uninstallation.'
+          }
+      - name: Submit the package to the Chocolatey community repository
+        if: github.event_name != 'workflow_dispatch' || !inputs.dry_run
+        shell: pwsh
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+          PACKAGE_VERSION: ${{ steps.prepare.outputs.version }}
+        run: |
+          if (!$env:CHOCO_API_KEY) { throw 'Configure the CHOCO_API_KEY Actions secret, then retry this workflow. The package is available in the artifact.' }
+          choco push "build/chocolatey/iconicfolders.$env:PACKAGE_VERSION.nupkg" --source https://push.chocolatey.org/ --api-key "$env:CHOCO_API_KEY" --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Chocolatey submission failed. Check the package page for an existing submission or moderation feedback before retrying.' }
+          "Submitted iconicfolders $env:PACKAGE_VERSION. Availability requires Chocolatey moderation: https://community.chocolatey.org/packages/iconicfolders/$env:PACKAGE_VERSION" >> $env:GITHUB_STEP_SUMMARY

@@ -1,0 +1,111 @@
+name: Submit IconicFolders to WinGet
+
+# Automatic opt-in: IconicFolders-Distribution: winget,chocolatey in the tag annotation.
+# Manual dispatch also supports existing stable releases; dry_run prepares artifacts only.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Published stable release tag (for example v1.1.0)'
+        required: true
+        type: string
+      dry_run:
+        description: 'Prepare manifests without submitting them'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: winget-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  selection:
+    if: github.event_name == 'workflow_dispatch' || (!github.event.release.draft && !github.event.release.prerelease)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      enabled: ${{ steps.selection.outputs.enabled }}
+      tag: ${{ steps.selection.outputs.tag }}
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      DISTRIBUTION_CHANNEL: winget
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Permit retrying an older release with the current distribution tooling.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - name: Test distribution selection
+        run: node --test .github/scripts/release-distribution.test.mjs
+      - name: Select automatic distribution or the explicit manual request
+        id: selection
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/release-distribution.mjs select
+
+  submit:
+    needs: selection
+    if: needs.selection.outputs.enabled == 'true'
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ needs.selection.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: 9.0.x
+      - name: Test manifest generation
+        shell: cmd
+        run: node --test .github/scripts/winget.test.mjs
+      - name: Prepare manifests from the published installer
+        id: prepare
+        shell: cmd
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node .github/scripts/winget.mjs
+      - name: Preserve manifests for review
+        if: steps.prepare.outputs.submit == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: winget-${{ env.RELEASE_TAG }}
+          path: build/winget
+          if-no-files-found: error
+      - name: Validate and submit to the WinGet community repository
+        if: steps.prepare.outputs.submit == 'true' && (github.event_name != 'workflow_dispatch' || !inputs.dry_run)
+        shell: pwsh
+        env:
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if (!$env:WINGET_CREATE_GITHUB_TOKEN) {
+            throw 'Configure the WINGET_TOKEN Actions secret (classic PAT with public_repo). The release is published; manifests are available in the workflow artifact. Rerun this workflow after configuring the secret.'
+          }
+          $tool = Join-Path $env:RUNNER_TEMP 'wingetcreate.exe'
+          Invoke-WebRequest 'https://github.com/microsoft/winget-create/releases/download/v1.12.13.0/wingetcreate.exe' -OutFile $tool
+          if ((Get-FileHash $tool -Algorithm SHA256).Hash -ine '24042bd37915805615e6cf969ac57c6439124c3fe85823327f5f3fb24bd9ffea') {
+            throw 'WingetCreate checksum mismatch.'
+          }
+          $signature = Get-AuthenticodeSignature -FilePath $tool
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch '(?:^|,\s*)O=Microsoft Corporation(?:,|$)') {
+            throw 'WingetCreate must have a valid Microsoft signature.'
+          }
+          # submit validates the complete manifest set before creating the PR.
+          & $tool submit --no-open --prtitle "New version: Benco.IconicFolders version $($env:RELEASE_TAG.Substring(1))" build/winget
+          if ($LASTEXITCODE -ne 0) { throw 'WinGet validation/submission failed. See WingetCreate diagnostics above.' }
+          'WinGet PR submitted. Catalog availability requires approval by microsoft/winget-pkgs.' >> $env:GITHUB_STEP_SUMMARY
