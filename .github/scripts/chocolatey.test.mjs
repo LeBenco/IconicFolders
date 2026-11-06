@@ -77,14 +77,14 @@ function Install-ChocolateyPackage {
     if ($SilentArgs -cne '/S /AllUsers' -or $ChecksumType64 -cne 'sha256' -or $ValidExitCodes.Count -ne 1 -or $ValidExitCodes[0] -ne 0) { throw 'Invalid install arguments' }
     $script:installCalls++
 }
-function Get-UninstallRegistryKey { param($SoftwareName) return $script:keys }
+function Get-UninstallRegistryKey { param($SoftwareName) return $script:registryKeys }
 function Uninstall-ChocolateyPackage {
     param($PackageName, $FileType, $File, $SilentArgs, $ValidExitCodes)
-    if ($File -cne (Join-Path $directory 'uninstall.exe') -or $SilentArgs -cne "/S /AllUsers _?=$directory" -or $ValidExitCodes.Count -ne 1 -or $ValidExitCodes[0] -ne 0) { throw 'Invalid uninstall arguments' }
+    if ($File -cne (Join-Path $directory 'uninstall.exe') -or $SilentArgs -cne '/S /AllUsers' -or $ValidExitCodes.Count -ne 1 -or $ValidExitCodes[0] -ne 0) { throw 'Invalid uninstall arguments' }
     $script:uninstallCalls++
-    if ($script:retireUninstaller) { Remove-Item -LiteralPath $File -Force }
+    Remove-Item -LiteralPath $File -Force
+    $script:registryKeys = @($personal)
 }
-$script:retireUninstaller = $false
 . ${quote(path.join(templates, 'chocolateyinstall.ps1'))}
 if ($script:installCalls -ne 1) { throw 'Install helper was not called' }
 $script:width = 32
@@ -93,19 +93,19 @@ try { . ${quote(path.join(templates, 'chocolateyinstall.ps1'))} } catch { $rejec
 if (!$rejected -or $script:installCalls -ne 1) { throw 'x86 was not rejected before installation' }
 $personal = [pscustomobject]@{PSPath='Microsoft.PowerShell.Core\\Registry::HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\IconicFolders';PSChildName='IconicFolders';InstallLocation=$directory}
 $machine = [pscustomobject]@{PSPath='Microsoft.PowerShell.Core\\Registry::HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\IconicFolders';PSChildName='IconicFolders';InstallLocation=$directory}
-$script:keys = @($personal)
+$script:registryKeys = @($personal)
 . ${quote(path.join(templates, 'chocolateyuninstall.ps1'))}
 if ($script:uninstallCalls -ne 0) { throw 'Personal installation must be preserved' }
-$script:keys = @($personal, $machine)
+$script:registryKeys = @($personal, $machine)
 . ${quote(path.join(templates, 'chocolateyuninstall.ps1'))}
 if ($script:uninstallCalls -ne 1) { throw 'Machine uninstaller was not called once' }
 if (Test-Path -LiteralPath (Join-Path $directory 'uninstall.exe')) { throw 'In-place uninstaller was not removed after exit' }
 if (!(Test-Path -LiteralPath $directory)) { throw 'A non-empty installation directory must be preserved' }
 [IO.File]::WriteAllText((Join-Path $directory 'uninstall.exe'), 'fixture; never executed')
-$script:retireUninstaller = $true
+$script:registryKeys = @($machine)
 . ${quote(path.join(templates, 'chocolateyuninstall.ps1'))}
 if ($script:uninstallCalls -ne 2) { throw 'An already retired native uninstaller must be accepted' }
-$script:keys = @($machine, $machine)
+$script:registryKeys = @($machine, $machine)
 $rejected = $false
 try { . ${quote(path.join(templates, 'chocolateyuninstall.ps1'))} } catch { $rejected = $true }
 if (!$rejected -or $script:uninstallCalls -ne 2) { throw 'Ambiguous installations must be rejected' }

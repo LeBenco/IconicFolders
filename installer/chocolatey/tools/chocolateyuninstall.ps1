@@ -14,15 +14,28 @@ $uninstaller = Join-Path $keys[0].InstallLocation 'uninstall.exe'
 if (!(Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
     throw "IconicFolders uninstaller is missing: $uninstaller"
 }
-# NSIS must run in place so the helper waits for the actual uninstall process.
-# _?= must remain last and unquoted, including when the directory contains spaces.
+# Let NSIS create its temporary worker and resolve its own installation path.
+# The bootstrap may exit first, so wait for actual removal before returning.
 Uninstall-ChocolateyPackage -PackageName $env:ChocolateyPackageName -FileType 'exe' `
-    -File $uninstaller -SilentArgs "/S /AllUsers _?=$($keys[0].InstallLocation)" -ValidExitCodes @(0)
-# In-place NSIS cannot delete its own executable until the process has exited.
-if (Test-Path -LiteralPath $uninstaller) {
-    Remove-Item -LiteralPath $uninstaller -Force
-}
-if ((Test-Path -LiteralPath $keys[0].InstallLocation) -and
-    !(Get-ChildItem -LiteralPath $keys[0].InstallLocation -Force | Select-Object -First 1)) {
-    Remove-Item -LiteralPath $keys[0].InstallLocation
-}
+    -File $uninstaller -SilentArgs '/S /AllUsers' -ValidExitCodes @(0)
+$deadline = [DateTime]::UtcNow.AddSeconds(120)
+do {
+    $busy = $false
+    foreach ($name in @('Local\IconicFolders.Setup', 'Global\IconicFolders.Setup')) {
+        $mutex = $null
+        try {
+            $mutex = [Threading.Mutex]::OpenExisting($name)
+            $busy = $true
+        } catch [Threading.WaitHandleCannotBeOpenedException] {
+        } finally {
+            if ($mutex) { $mutex.Dispose() }
+        }
+    }
+    if (!(Test-Path -LiteralPath $keys[0].PSPath) -and !$busy -and
+        !(Test-Path -LiteralPath (Join-Path $keys[0].InstallLocation 'IconicFolders.exe')) -and
+        !(Test-Path -LiteralPath (Join-Path $keys[0].InstallLocation 'IconicFoldersShell.dll'))) {
+        return
+    }
+    Start-Sleep -Milliseconds 200
+} while ([DateTime]::UtcNow -lt $deadline)
+throw 'The native IconicFolders uninstaller did not finish removing the machine installation.'
