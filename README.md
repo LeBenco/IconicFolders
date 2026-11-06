@@ -36,7 +36,10 @@ This choice is available only for `.ico` files. For other sources:
   without cropping.
 - **EXE/DLL icons:** used by reference only.
 
-Choose **Folder icon → Restore default icon** to reset. Subfolders are not changed.
+Choose **Folder icon → Restore default icon** to reset.
+
+Changing or restoring a folder’s icon affects only the folders you select.
+Their subfolders keep their existing icons.
 
 ## Updates
 
