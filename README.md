@@ -52,29 +52,25 @@ to re-enable it after installing a corrected version.
 
 ## Technical details
 
-C++20 and Win32, using Shell COM APIs and Windows Imaging Component. The context-menu
-extension launches a separate picker; no permanent background process is needed.
-Folder icons use `desktop.ini`, preserving unrelated settings. Copied icons use
-content-versioned filenames; Windows may cache externally replaced direct references
-until Explorer restarts.
-
-The file selector is isolated behind `IFileSelector` in `src/file-selector.h`.
-Experimental native-dialog hosting lives in `src/native-file-selector.cpp`, with a
-separate native dialog as fallback. Preferences are stored in `HKCU\Software\IconicFolders`.
+Folder icons use Windows’ `desktop.ini` mechanism. Its `IconResource` entry points
+to the original file in reference mode, or to a relative path inside the folder
+in copy mode. Other settings and formatting are preserved, and the required file
+and folder attributes are applied automatically.
 
 ### Build
 
-Requires Visual Studio 2022 C++ Build Tools, Windows SDK 10.0.19041+, PowerShell,
-NSIS 3 and Inkscape with Python/Pillow for installer artwork.
+Built in C++20 with Visual Studio 2022 C++ Build Tools, Windows SDK 10.0.19041+
+and bundled Microsoft WIL headers. The build uses PowerShell; installer generation
+requires NSIS 3 and Inkscape with Python/Pillow. ImageMagick is also needed when
+regenerating the application icons.
 
 ```powershell
 .\build.ps1 -Configuration Release -Installer
 ```
 
-For icon regeneration, see [assets/SOURCES.md](assets/SOURCES.md).
-
 ## License
 
 Copyright (C) 2026 Benco. **GPL-3.0-only**; see [LICENSE](LICENSE).
-Microsoft WIL and the adapted [Fluent Emoji pencil](assets/SOURCES.md) retain their
-MIT licenses and notices.
+[Microsoft WIL](external/wil/LICENSE) and the adapted
+[Fluent Emoji pencil](assets/third-party/LICENSE-Microsoft-Fluent-Emoji.txt)
+retain their MIT licenses and notices.

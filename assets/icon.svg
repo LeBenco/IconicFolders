@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 <!-- Copyright (C) 2026 Benco. Pencil paths: Copyright (c) Microsoft Corporation, MIT. -->
-<!-- See SOURCES.md and third-party/LICENSE-Microsoft-Fluent-Emoji.txt. -->
+<!-- See third-party/LICENSE-Microsoft-Fluent-Emoji.txt. -->
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
   <defs>
     <linearGradient id="folder-back" x1="18" y1="40" x2="230" y2="40" gradientUnits="userSpaceOnUse">
