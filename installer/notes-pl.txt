@@ -1,0 +1,9 @@
+1.1.0
+
+- Wybór obrazu, ikony, innego folderu lub ikon osadzonych.
+- Konwersja obrazów i zapisywanie dodanych źródeł ikon.
+- Instalacja dla bieżącego użytkownika lub wszystkich użytkowników.
+- Aktualizacja załadowanego rozszerzenia powłoki.
+- Poprawione opcjonalne ponowne uruchamianie Eksploratora.
+- Wyłączanie integracji po pięciu wczesnych awariach Eksploratora.
+- Zwarty układ z większym podglądem wybranej ikony.

@@ -2,54 +2,68 @@
 
 # IconicFolders
 
-Change a folder’s icon directly from its Windows context menu, and restore the
-default icon at any time. Supports Windows 10 and later (x64), in French or English.
+Change folder icons from the Windows context menu, and restore the default icon
+at any time. For Windows 10 and later (x64), in French or English.
 
-[Download the Windows installer](https://github.com/LeBenco/IconicFolders/releases/latest).
+[Download the installer](https://github.com/LeBenco/IconicFolders/releases/latest).
 
 ## Usage
 
-1. Install IconicFolders.
+1. Install IconicFolders for yourself or all users.
 2. Right-click one or more folders and choose **Folder icon → Choose an icon…**.
-3. Select an `.ico` file, choose how to use it, and click **Apply**.
+3. Choose a source:
+
+   - **Image or icon:** select an ICO, PNG, JPEG or BMP file.
+   - **Another folder:** reuse its icon.
+   - **Embedded icons:** browse Windows collections or add an EXE/DLL.
+
+   Click **Apply**, or double-click an icon to apply it.
 
 On Windows 11, open **Show more options** to find the menu.
 
-- **Use the original file:** it must stay available at the same location.
-- **Copy into the folder:** a hidden copy stays with the folder when you move it.
+- **Use the original icon:** the source file must remain available.
+- **Copy the icon into the folder:** a hidden copy stays with the folder.
 
-To reset, choose **Folder icon → Restore default icon**. Subfolders are not changed.
-Uninstalling the app leaves customized folders intact.
+PNG, JPEG and BMP images are converted and copied automatically, centered without
+cropping. EXE/DLL icons are used by reference only. Added sources and your interface
+preferences are remembered. Only use images and icons you have the right to use.
+
+Choose **Folder icon → Restore default icon** to reset. Subfolders are not changed.
+
+## Updates
+
+Run the new installer over the existing installation, even while its DLL is loaded.
+Restart Explorer when offered, or later, to activate context-menu changes.
+Uninstalling leaves customized folders intact.
+
+If repeated early Explorer crashes disable the extension, open `IconicFolders.exe`
+to re-enable it after installing a corrected version.
 
 ## Technical details
 
-Built with C++20, Win32, Shell COM APIs and Microsoft WIL. The context-menu
-extension launches a separate app for the icon picker and file operations;
-there is no permanent background process.
+C++20 and Win32, using Shell COM APIs and Windows Imaging Component. The context-menu
+extension launches a separate picker; no permanent background process is needed.
+Folder icons use `desktop.ini`, preserving unrelated settings. Copied icons use
+content-versioned filenames; Windows may cache externally replaced direct references
+until Explorer restarts.
 
-Folder icons use the standard Windows `desktop.ini` mechanism. `IconResource`
-points to the original file or a hidden `iconicfolders.ico` copy inside the folder.
-Other folder settings are preserved, and Explorer is notified after changes.
+The file selector is isolated behind `IFileSelector` in `src/file-selector.h`.
+Experimental native-dialog hosting lives in `src/native-file-selector.cpp`, with a
+separate native dialog as fallback. Preferences are stored in `HKCU\Software\IconicFolders`.
 
-Operations run with the current user's permissions, without elevation. The app
-stores only the last source directory and selected mode in
-`HKCU\Software\IconicFolders`.
+### Build
 
-### Build and tests
-
-Requires Visual Studio 2022 C++ Build Tools, Windows SDK 10.0.19041 or newer,
-PowerShell and NSIS 3.
+Requires Visual Studio 2022 C++ Build Tools, Windows SDK 10.0.19041+, PowerShell,
+NSIS 3 and Inkscape with Python/Pillow for installer artwork.
 
 ```powershell
-.\build.ps1 -Configuration Release -Test -Installer
+.\build.ps1 -Configuration Release -Installer
 ```
 
-If icon assets need regeneration, Inkscape (with bundled Python/Pillow) and
-ImageMagick are also required. See [assets/SOURCES.md](assets/SOURCES.md).
+For icon regeneration, see [assets/SOURCES.md](assets/SOURCES.md).
 
 ## License
 
-Copyright (C) 2026 Benco. Licensed under **GPL-3.0-only**. See [LICENSE](LICENSE).
-
-Third-party components: [Microsoft WIL](external/wil/LICENSE) and a modified
-[Microsoft Fluent Emoji pencil](assets/SOURCES.md), both under the MIT license.
+Copyright (C) 2026 Benco. **GPL-3.0-only**; see [LICENSE](LICENSE).
+Microsoft WIL and the adapted [Fluent Emoji pencil](assets/SOURCES.md) retain their
+MIT licenses and notices.

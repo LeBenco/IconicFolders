@@ -8,7 +8,7 @@ $clsid='Software\Classes\CLSID\{75F4D684-8623-4CE1-B3B2-464EF177FDDE}'
 $menu='Software\Classes\Directory\shell\IconicFolders'
 if((Test-Path 'HKCU:\Software\IconicFolders') -or (Test-Path "HKCU:\$clsid") -or (Test-Path "HKCU:\$menu")) {throw 'An existing installation/settings was found. Installer test will not modify it.'}
 if(Test-Path $target) {throw 'Installer test destination must be empty.'}
-$setup=Join-Path $root 'dist\IconicFolders-1.0.1-x64-Setup.exe'
+$setup=Join-Path $root 'dist\IconicFolders-1.1.0-x64-Setup.exe'
 $process=Start-Process -FilePath $setup -ArgumentList "/S /D=$target" -WindowStyle Hidden -PassThru
 if(!$process.WaitForExit(30000)) {throw 'Installer timed out.'}
 if($process.ExitCode) {throw "Installer exit $($process.ExitCode)"}

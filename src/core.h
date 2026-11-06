@@ -12,7 +12,21 @@ namespace fs = std::filesystem;
 inline constexpr wchar_t ManagedIcon[] = L"iconicfolders.ico";
 inline constexpr HRESULT UnsupportedIniEncoding = MAKE_HRESULT(SEVERITY_ERROR,FACILITY_ITF,0x201);
 enum class Mode { Reference, Copy };
-struct IconInfo { std::wstring resource; fs::path source; bool managed = false; };
+struct IconInfo { std::wstring resource; fs::path source; bool managed = false; int index = 0; };
+struct IconData {
+    fs::path source;
+    int index = 0;
+    bool image = false;
+    bool copyAllowed = true;
+    UINT width = 0, height = 0;
+    std::vector<unsigned char> bytes;
+};
+// The preference survives an image selection; only the effective mode is forced.
+struct IconMode {
+    Mode preferred = Mode::Reference;
+    Mode effective(bool image, bool copyAllowed = true) const { return image ? Mode::Copy : copyAllowed ? preferred : Mode::Reference; }
+    void choose(Mode value, bool image, bool copyAllowed) { if(!image && copyAllowed)preferred=value; }
+};
 class Ini {
 public:
     explicit Ini(const std::vector<unsigned char>& bytes);
@@ -28,9 +42,13 @@ private:
 std::vector<unsigned char> readFile(const fs::path&, size_t limit = 16 * 1024 * 1024);
 void writeFile(const fs::path&, const std::vector<unsigned char>&);
 void validateIcon(const fs::path&);
+void validateIconBytes(const std::vector<unsigned char>&);
 IconInfo inspect(const fs::path& folder);
+std::wstring managedIconName(const std::vector<unsigned char>& bytes);
+bool needsOverwrite(const fs::path& folder, const IconData& source, Mode mode);
 bool needsOverwrite(const fs::path& folder, const fs::path& source, Mode mode);
 void apply(const fs::path& folder, const fs::path& source, Mode mode, bool overwriteApproved);
+void apply(const fs::path& folder, const IconData& source, Mode mode, bool overwriteApproved);
 void reset(const fs::path& folder, bool deleteApproved);
 void notify(const fs::path& folder);
 std::wstring quoteArg(const std::wstring&);

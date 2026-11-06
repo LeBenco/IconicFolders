@@ -3,6 +3,7 @@
 #include "core.h"
 #include "ui.h"
 #include "resource.h"
+#include "shell-safety.h"
 #include <shobjidl.h>
 #include <shlwapi.h>
 #include <wrl.h>
@@ -89,7 +90,9 @@ public:
 };
 extern "C" HRESULT __stdcall DllGetClassObject(REFCLSID clsid,REFIID iid,void** result) {
     if(!result)return E_POINTER; *result=nullptr; if(clsid!=CLSID_IconicFolders)return CLASS_E_CLASSNOTAVAILABLE;
+    if(!allowShellActivation(moduleHandle))return CLASS_E_CLASSNOTAVAILABLE;
     auto factory=Make<Factory>(); return factory?factory->QueryInterface(iid,result):E_OUTOFMEMORY;
 }
 extern "C" HRESULT __stdcall DllCanUnloadNow() { return objects==0?S_OK:S_FALSE; }
-BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID) { if(reason==DLL_PROCESS_ATTACH) {moduleHandle=instance;DisableThreadLibraryCalls(instance);} return TRUE; }
+// /MT needs CRT thread notifications; do not disable them in this DLL.
+BOOL WINAPI DllMain(HINSTANCE instance,DWORD reason,LPVOID) { if(reason==DLL_PROCESS_ATTACH)moduleHandle=instance;return TRUE; }

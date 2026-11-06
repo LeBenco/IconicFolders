@@ -1,0 +1,9 @@
+1.1.0
+
+- Kies een afbeelding, pictogram, andere map of ingesloten pictogrammen.
+- Converteer afbeeldingen en onthoud toegevoegde bronnen.
+- Installeer voor de huidige gebruiker of alle gebruikers.
+- Werk een geladen shell-extensie bij.
+- Verbeterd optioneel opnieuw starten van Verkenner.
+- Schakel integratie uit na vijf vroege abnormale afsluitingen.
+- Compacte indeling met een groter selectievoorbeeld.

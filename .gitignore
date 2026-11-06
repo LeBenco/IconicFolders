@@ -1,5 +1,7 @@
 /build/
 /dist/
+/tests/
+/docs/test-results/
 /tools/asan/
 /external/wil-source/
 *.user

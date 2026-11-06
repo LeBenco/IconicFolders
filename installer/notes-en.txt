@@ -1,0 +1,9 @@
+1.1.0
+
+- Choose an image, an icon, another folder or embedded icons.
+- Convert images and remember added icon sources.
+- Install for the current user or all users.
+- Update while the shell extension is loaded.
+- Corrected optional Explorer restart.
+- Disable Explorer integration after five early abnormal exits.
+- Compact layout with a larger selection preview.

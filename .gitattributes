@@ -1,3 +1,2 @@
 * text=auto eol=lf
 *.cmd text eol=crlf
-docs/test-results/*.log -whitespace

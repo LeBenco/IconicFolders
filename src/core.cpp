@@ -10,6 +10,7 @@
 #include <cwctype>
 #include <cstring>
 #include <limits>
+#include <bcrypt.h>
 
 namespace iconic {
 namespace {
@@ -43,8 +44,13 @@ std::vector<Line> lines(const std::wstring& text) {
     return out;
 }
 bool iconKey(const std::wstring& s) { return equal(s,L"IconResource") || equal(s,L"IconFile") || equal(s,L"IconIndex"); }
+fs::path ioPath(const fs::path& input) {
+    auto path=fs::absolute(input).lexically_normal().native();
+    if(path.size()<MAX_PATH||path.starts_with(L"\\\\?\\"))return path;
+    return path.starts_with(L"\\\\")?L"\\\\?\\UNC\\"+path.substr(2):L"\\\\?\\"+path;
+}
 DWORD attrs(const fs::path& path) {
-    DWORD a = GetFileAttributesW(path.c_str());
+    auto native=ioPath(path);DWORD a = GetFileAttributesW(native.c_str());
     if (a == INVALID_FILE_ATTRIBUTES) { DWORD e = GetLastError(); if (e != ERROR_FILE_NOT_FOUND && e != ERROR_PATH_NOT_FOUND) THROW_WIN32(e); }
     return a;
 }
@@ -53,13 +59,14 @@ void regular(const fs::path& path, bool directory = false) {
     THROW_WIN32_IF(ERROR_REPARSE_TAG_INVALID, (a & FILE_ATTRIBUTE_REPARSE_POINT)!=0);
     THROW_WIN32_IF(ERROR_DIRECTORY, !!(a & FILE_ATTRIBUTE_DIRECTORY) != directory);
 }
-fs::path fullPath(const fs::path& p) { return fs::absolute(p).lexically_normal(); }
+fs::path fullPath(const fs::path& p) { return ioPath(p); }
 bool same(const fs::path& a, const fs::path& b) { return equal(fullPath(a).native(), fullPath(b).native()); }
 fs::path tempPath(const fs::path& folder) {
     GUID id; THROW_IF_FAILED(CoCreateGuid(&id)); wchar_t name[64]; StringFromGUID2(id,name,64);
     return folder / (std::wstring(L".iconicfolders-") + name + L".tmp");
 }
-void replace(const fs::path& target, const std::vector<unsigned char>& bytes, DWORD attributes) {
+void replace(const fs::path& input, const std::vector<unsigned char>& bytes, DWORD attributes) {
+    auto target=ioPath(input);
     auto tmp = tempPath(target.parent_path());
     auto cleanup = wil::scope_exit([&] { DeleteFileW(tmp.c_str()); });
     writeFile(tmp, bytes);
@@ -93,7 +100,7 @@ Snapshot snapshot(const fs::path& p) {
     regular(p); return {true,a,readFile(p,64*1024*1024)};
 }
 wil::unique_handle protectIni(const fs::path& p) {
-    wil::unique_handle handle(CreateFileW(p.c_str(),GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_DELETE,nullptr,OPEN_EXISTING,0,nullptr));
+    auto native=ioPath(p);wil::unique_handle handle(CreateFileW(native.c_str(),GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_DELETE,nullptr,OPEN_EXISTING,0,nullptr));
     if(!handle) { DWORD error=GetLastError();if(error!=ERROR_FILE_NOT_FOUND&&error!=ERROR_PATH_NOT_FOUND)THROW_WIN32(error); }
     return handle;
 }
@@ -104,7 +111,7 @@ void unchanged(const fs::path& p,const Snapshot& old) {
 }
 void restore(const fs::path& p, const Snapshot& s) {
     if (s.exists) replace(p,s.bytes,s.attributes);
-    else if (attrs(p) != INVALID_FILE_ATTRIBUTES) { SetFileAttributesW(p.c_str(),FILE_ATTRIBUTE_NORMAL); THROW_IF_WIN32_BOOL_FALSE(DeleteFileW(p.c_str())); }
+    else if (attrs(p) != INVALID_FILE_ATTRIBUTES) {auto native=ioPath(p);SetFileAttributesW(native.c_str(),FILE_ATTRIBUTE_NORMAL);THROW_IF_WIN32_BOOL_FALSE(DeleteFileW(native.c_str())); }
 }
 // Serialize our own processes per folder. Other writers are excluded by the INI handle.
 wil::unique_handle lockFolder(const fs::path& folder) {
@@ -118,12 +125,21 @@ wil::unique_handle lockFolder(const fs::path& folder) {
 IconInfo infoFrom(const fs::path& folder, const Ini& ini) {
     IconInfo info; info.resource=ini.icon(); auto value=trim(info.resource);
     if (value.empty()) return info;
-    size_t comma=value.rfind(L','); if (comma!=value.npos) value=trim(value.substr(0,comma));
+    size_t comma=value.rfind(L',');
+    if (comma!=value.npos) {
+        auto number=trim(value.substr(comma+1)); size_t used=0;
+        try { info.index=std::stoi(number,&used); } catch(...) { THROW_WIN32(ERROR_INVALID_DATA); }
+        THROW_WIN32_IF(ERROR_INVALID_DATA,used!=number.size());
+        value=trim(value.substr(0,comma));
+    }
     if (value.size()>1 && value.front()==L'"' && value.back()==L'"') value=value.substr(1,value.size()-2);
-    info.managed=equal(value,ManagedIcon) && trim(info.resource.substr(info.resource.rfind(L',')+1))==L"0";
+    bool versioned=value.size()==82&&equal(value.substr(0,14),L"iconicfolders-")&&equal(value.substr(78),L".ico");
+    if(versioned)for(size_t i=14;i<78;++i)if(!((value[i]>=L'0'&&value[i]<=L'9')||(towlower(value[i])>=L'a'&&towlower(value[i])<=L'f')))versioned=false;
+    info.managed=(equal(value,ManagedIcon)||versioned) && trim(info.resource.substr(info.resource.rfind(L',')+1))==L"0";
     wchar_t expanded[32768]; DWORD n=ExpandEnvironmentStringsW(value.c_str(),expanded,32768);
     THROW_WIN32_IF(ERROR_FILENAME_EXCED_RANGE,!n || n>32768);
     info.source=fs::path(expanded); if (info.source.is_relative()) info.source=folder/info.source;
+    info.source=ioPath(info.source);
     return info;
 }
 struct CachedIcon {
@@ -143,6 +159,26 @@ struct CachedIcon {
     }
     void refresh() const { if(system>=0)SHUpdateImageW(file.c_str(),resource,flags,system); }
 };
+void notifyFile(const fs::path& path) {
+    wil::unique_cotaskmem_ptr<ITEMIDLIST> item;
+    if(SUCCEEDED(SHParseDisplayName(path.c_str(),nullptr,wil::out_param(item),0,nullptr)))SHChangeNotify(SHCNE_UPDATEITEM,SHCNF_IDLIST|SHCNF_FLUSHNOWAIT,item.get(),nullptr);
+}
+void synchronizeFolderIcon(const fs::path& folder,PWSTR file,int index) noexcept {
+    // Atomic INI replacement alone leaves the Shell's folder-customization
+    // cache stale. Publish the same setting through its documented API. The
+    // API has a MAX_PATH folder limit; long-path file operations still work.
+    if(folder.native().size()>=MAX_PATH)return;
+    try {
+    // Let the documented setter update the customization cache, while keeping
+    // ownership of desktop.ini cleanup in our transaction. Windows otherwise
+    // removes a file containing only the now-empty customization section.
+    auto iniPath=folder/L"desktop.ini";wil::unique_handle pin(CreateFileW(iniPath.c_str(),GENERIC_READ,FILE_SHARE_READ|FILE_SHARE_WRITE,nullptr,OPEN_EXISTING,0,nullptr));if(!pin)return;
+    DWORD previous=GetFileAttributesW(folder.c_str());
+    SHFOLDERCUSTOMSETTINGS settings={sizeof(settings)};settings.dwMask=FCSM_ICONFILE;settings.pszIconFile=file;settings.iIconIndex=index;
+    SHGetSetFolderCustomSettings(&settings,folder.c_str(),FCS_FORCEWRITE);
+    if(previous!=INVALID_FILE_ATTRIBUTES)SetFileAttributesW(folder.c_str(),previous);
+    }catch(...){} // Cache publication is advisory; the file transaction is done.
+}
 }
 
 Ini::Ini(const std::vector<unsigned char>& bytes) : encoding_(Encoding::Utf16LE) {
@@ -208,70 +244,98 @@ std::vector<unsigned char> Ini::update(const std::optional<std::wstring>& resour
     return bytes;
 }
 std::vector<unsigned char> readFile(const fs::path& p,size_t limit) {
-    wil::unique_handle h(CreateFileW(p.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN,nullptr)); THROW_LAST_ERROR_IF(!h);
+    auto native=ioPath(p);wil::unique_handle h(CreateFileW(native.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_FLAG_SEQUENTIAL_SCAN,nullptr)); THROW_LAST_ERROR_IF(!h);
     LARGE_INTEGER size; THROW_IF_WIN32_BOOL_FALSE(GetFileSizeEx(h.get(),&size)); THROW_WIN32_IF(ERROR_FILE_TOO_LARGE,size.QuadPart<0||static_cast<unsigned long long>(size.QuadPart)>limit);
     std::vector<unsigned char> bytes(static_cast<size_t>(size.QuadPart)); DWORD got=0;
     if(!bytes.empty()) { THROW_IF_WIN32_BOOL_FALSE(ReadFile(h.get(),bytes.data(),static_cast<DWORD>(bytes.size()),&got,nullptr)); THROW_WIN32_IF(ERROR_READ_FAULT,got!=bytes.size()); } return bytes;
 }
 void writeFile(const fs::path& p,const std::vector<unsigned char>& bytes) {
-    wil::unique_handle h(CreateFileW(p.c_str(),GENERIC_WRITE,0,nullptr,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,nullptr)); THROW_LAST_ERROR_IF(!h); DWORD wrote=0;
+    auto native=ioPath(p);wil::unique_handle h(CreateFileW(native.c_str(),GENERIC_WRITE,0,nullptr,CREATE_NEW,FILE_ATTRIBUTE_NORMAL,nullptr)); THROW_LAST_ERROR_IF(!h); DWORD wrote=0;
     if(!bytes.empty()) { THROW_IF_WIN32_BOOL_FALSE(WriteFile(h.get(),bytes.data(),static_cast<DWORD>(bytes.size()),&wrote,nullptr)); THROW_WIN32_IF(ERROR_WRITE_FAULT,wrote!=bytes.size()); }
     THROW_IF_WIN32_BOOL_FALSE(FlushFileBuffers(h.get()));
 }
 void validateIcon(const fs::path& p) {
-    regular(p); THROW_WIN32_IF(ERROR_INVALID_DATA,!equal(p.extension().native(),L".ico")); auto b=readFile(p,64*1024*1024);
+    regular(p); THROW_WIN32_IF(ERROR_INVALID_DATA,!equal(p.extension().native(),L".ico")); validateIconBytes(readFile(p,64*1024*1024));
+}
+void validateIconBytes(const std::vector<unsigned char>& b) {
     auto u16=[&](size_t i)->unsigned { return b[i]|(b[i+1]<<8); };
     auto u32=[&](size_t i)->unsigned { return b[i]|(b[i+1]<<8)|(b[i+2]<<16)|(static_cast<unsigned>(b[i+3])<<24); };
     THROW_WIN32_IF(ERROR_INVALID_DATA,b.size()<6 || u16(0)!=0 || u16(2)!=1 || !u16(4));
     unsigned count=u16(4); THROW_WIN32_IF(ERROR_INVALID_DATA,count>(b.size()-6)/16);
     for(unsigned i=0;i<count;++i) { size_t p0=6+i*16; size_t len=u32(p0+8),offset=u32(p0+12);
         THROW_WIN32_IF(ERROR_INVALID_DATA,!len || offset<6+count*16 || offset>b.size() || len>b.size()-offset);
-        wil::unique_hicon icon(CreateIconFromResourceEx(b.data()+offset,static_cast<DWORD>(len),TRUE,0x30000,b[p0]?b[p0]:256,b[p0+1]?b[p0+1]:256,LR_DEFAULTCOLOR)); THROW_WIN32_IF(ERROR_INVALID_DATA,!icon);
+        wil::unique_hicon icon(CreateIconFromResourceEx(const_cast<PBYTE>(b.data()+offset),static_cast<DWORD>(len),TRUE,0x30000,b[p0]?b[p0]:256,b[p0+1]?b[p0+1]:256,LR_DEFAULTCOLOR)); THROW_WIN32_IF(ERROR_INVALID_DATA,!icon);
     }
 }
 IconInfo inspect(const fs::path& folder) { auto p=folder/L"desktop.ini"; if(attrs(p)==INVALID_FILE_ATTRIBUTES)return {}; regular(p); return infoFrom(folder,Ini(readFile(p))); }
-bool needsOverwrite(const fs::path& folder,const fs::path& source,Mode mode) { return mode==Mode::Copy && attrs(folder/ManagedIcon)!=INVALID_FILE_ATTRIBUTES && !same(source,folder/ManagedIcon); }
+std::wstring managedIconName(const std::vector<unsigned char>& bytes) {
+    THROW_WIN32_IF(ERROR_INVALID_DATA,bytes.size()>64*1024*1024);unsigned char hash[32]={};
+    auto status=BCryptHash(BCRYPT_SHA256_ALG_HANDLE,nullptr,0,const_cast<PUCHAR>(bytes.data()),static_cast<ULONG>(bytes.size()),hash,sizeof(hash));THROW_HR_IF(HRESULT_FROM_NT(status),status<0);
+    constexpr wchar_t hex[]=L"0123456789abcdef";std::wstring name=L"iconicfolders-";for(auto byte:hash){name+=hex[byte>>4];name+=hex[byte&15];}return name+L".ico";
+}
+bool needsOverwrite(const fs::path& folder,const IconData& data,Mode mode) {
+    if(mode!=Mode::Copy)return false;auto destination=folder/managedIconName(data.bytes);auto old=inspect(folder);
+    return (attrs(destination)!=INVALID_FILE_ATTRIBUTES&&!same(data.source,destination))||(old.managed&&!same(old.source,destination)&&attrs(old.source)!=INVALID_FILE_ATTRIBUTES);
+}
+bool needsOverwrite(const fs::path& folder,const fs::path& source,Mode mode) {if(mode!=Mode::Copy)return false;IconData data;data.source=source;data.bytes=readFile(source,64*1024*1024);return needsOverwrite(folder,data,mode);}
 void apply(const fs::path& input,const fs::path& source,Mode mode,bool overwriteApproved) {
-    auto folder=fullPath(input); regular(folder,true); validateIcon(source);
+    validateIcon(source);
+    IconData data; data.source=source; data.bytes=readFile(source,64*1024*1024);
+    apply(input,data,mode,overwriteApproved);
+}
+void apply(const fs::path& input,const IconData& data,Mode mode,bool overwriteApproved) {
+    const auto& source=data.source;
+    auto folder=fullPath(input); regular(folder,true); regular(source); validateIconBytes(data.bytes);
+    THROW_WIN32_IF(ERROR_INVALID_PARAMETER,data.image&&mode!=Mode::Copy);
+    THROW_WIN32_IF(ERROR_ACCESS_DENIED,mode==Mode::Copy&&!data.copyAllowed);
     auto mutex=lockFolder(folder); auto release=wil::scope_exit([&]{ReleaseMutex(mutex.get());});
-    auto iniPath=folder/L"desktop.ini",iconPath=folder/ManagedIcon;
+    auto iniPath=folder/L"desktop.ini",iconPath=folder/(mode==Mode::Copy?managedIconName(data.bytes):std::wstring(ManagedIcon));
+    iconPath=ioPath(iconPath);
     auto iniLock=protectIni(iniPath);
     Snapshot oldIni=snapshot(iniPath); Ini ini(oldIni.bytes);ini.requireShellEncoding(); auto old=infoFrom(folder,ini);
     bool copy=mode==Mode::Copy && !same(source,iconPath);
-    THROW_WIN32_IF(ERROR_FILE_EXISTS,copy && attrs(iconPath)!=INVALID_FILE_ATTRIBUTES && !overwriteApproved);
+    bool removeOld=old.managed&&(mode==Mode::Copy?!same(old.source,iconPath):!same(source,old.source))&&attrs(old.source)!=INVALID_FILE_ATTRIBUTES;
+    THROW_WIN32_IF(ERROR_FILE_EXISTS,mode==Mode::Copy&&((copy&&attrs(iconPath)!=INVALID_FILE_ATTRIBUTES)||removeOld)&&!overwriteApproved);
     // An absolute reference to the reserved filename remains a reference, never an owned copy.
-    auto value=mode==Mode::Copy?std::wstring(ManagedIcon):fullPath(source).native();
+    auto value=mode==Mode::Copy?iconPath.filename().native():fullPath(source).native();
     THROW_WIN32_IF(ERROR_INVALID_NAME,value.find_first_of(L"\r\n")!=value.npos);
-    auto updated=ini.update(value+L",0");
-    bool removeOld=mode==Mode::Reference && old.managed && !same(source,iconPath) && attrs(iconPath)!=INVALID_FILE_ATTRIBUTES;
+    auto updated=ini.update(value+L","+std::to_wstring(mode==Mode::Copy?0:data.index));
     THROW_WIN32_IF(ERROR_CANCELLED,removeOld&&!overwriteApproved);
-    Snapshot oldIcon=(copy||removeOld||mode==Mode::Copy)?snapshot(iconPath):Snapshot{false,FILE_ATTRIBUTE_NORMAL,{}}; DWORD folderAttrs=attrs(folder);
+    Snapshot oldIcon=mode==Mode::Copy?snapshot(iconPath):Snapshot{false,FILE_ATTRIBUTE_NORMAL,{}};
+    Snapshot retired=removeOld?snapshot(old.source):Snapshot{false,FILE_ATTRIBUTE_NORMAL,{}};DWORD folderAttrs=attrs(folder);
     std::optional<CachedIcon> cache;
     // Capture the old Shell cache entry before changing the INI or icon bytes.
     // References can also reuse a path whose image has changed on disk.
     if(!old.resource.empty()||(copy&&oldIcon.exists))cache.emplace(folder);
-    bool changedIcon=false,changedIni=false;
+    std::optional<CachedIcon> fileCache;
+    if(mode==Mode::Reference&&data.copyAllowed)fileCache.emplace(source);
+    else if(mode==Mode::Copy&&oldIcon.exists)fileCache.emplace(iconPath);
+    bool changedIcon=false,changedIni=false,changedRetired=false;
     try {
-        if(copy) { replace(iconPath,readFile(source,64*1024*1024),FILE_ATTRIBUTE_HIDDEN); changedIcon=true; }
+        if(copy) { replace(iconPath,data.bytes,FILE_ATTRIBUTE_HIDDEN); changedIcon=true; }
         else if(mode==Mode::Copy) { THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(iconPath.c_str(),oldIcon.attributes|FILE_ATTRIBUTE_HIDDEN)); changedIcon=true; }
         unchanged(iniPath,oldIni);
         replace(iniPath,updated,(oldIni.exists?oldIni.attributes:0)|FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM); changedIni=true;
         THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(folder.c_str(),folderAttrs|FILE_ATTRIBUTE_READONLY|FILE_ATTRIBUTE_SYSTEM));
-        if(removeOld) { regular(iconPath); THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(iconPath.c_str(),oldIcon.attributes&~FILE_ATTRIBUTE_READONLY)); changedIcon=true; THROW_IF_WIN32_BOOL_FALSE(DeleteFileW(iconPath.c_str())); }
+        if(removeOld) { regular(old.source); THROW_IF_WIN32_BOOL_FALSE(SetFileAttributesW(old.source.c_str(),retired.attributes&~FILE_ATTRIBUTE_READONLY));if(!DeleteFileW(old.source.c_str())){DWORD error=GetLastError();SetFileAttributesW(old.source.c_str(),retired.attributes);THROW_WIN32(error);}changedRetired=true; }
     } catch (...) {
         auto failure=std::current_exception();
         if(changedIni) restore(iniPath,oldIni);
         if(changedIcon) restore(iconPath,oldIcon);
+        if(changedRetired)restore(old.source,retired);
         SetFileAttributesW(folder.c_str(),folderAttrs); std::rethrow_exception(failure);
     }
     iniLock.reset();
-    if(cache)cache->refresh(); notify(folder);
+    if(fileCache)fileCache->refresh();
+    if(cache)cache->refresh();
+    if(mode==Mode::Copy||fileCache)notifyFile(mode==Mode::Copy?iconPath:source);notifyFile(iniPath);
+    synchronizeFolderIcon(folder,value.data(),mode==Mode::Copy?0:data.index);notify(folder);
 }
 void reset(const fs::path& input,bool deleteApproved) {
     auto folder=fullPath(input); regular(folder,true); auto mutex=lockFolder(folder); auto release=wil::scope_exit([&]{ReleaseMutex(mutex.get());});
     auto iniPath=folder/L"desktop.ini";auto iniLock=protectIni(iniPath); auto old=snapshot(iniPath); if(!old.exists)return;
     Ini ini(old.bytes);ini.requireShellEncoding(); auto info=infoFrom(folder,ini); if(info.resource.empty())return;
-    auto iconPath=folder/ManagedIcon; bool remove=info.managed&&attrs(iconPath)!=INVALID_FILE_ATTRIBUTES;
+    auto iconPath=info.source; bool remove=info.managed&&attrs(iconPath)!=INVALID_FILE_ATTRIBUTES;
     THROW_WIN32_IF(ERROR_CANCELLED,remove&&!deleteApproved); Snapshot icon=remove?snapshot(iconPath):Snapshot{false,FILE_ATTRIBUTE_NORMAL,{}};
     CachedIcon cache(folder);
     unchanged(iniPath,old);replace(iniPath,ini.update(std::nullopt),old.attributes|FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_SYSTEM);
@@ -283,16 +347,18 @@ void reset(const fs::path& input,bool deleteApproved) {
             auto failure=std::current_exception();SetFileAttributesW(iconPath.c_str(),icon.attributes);restore(iniPath,old);std::rethrow_exception(failure);
         }
     }
-    iniLock.reset();cache.refresh();notify(folder);
+    iniLock.reset();synchronizeFolderIcon(folder,nullptr,0);cache.refresh();notify(folder);
 }
 void notify(const fs::path& folder) {
     wil::unique_cotaskmem_ptr<ITEMIDLIST> item,parent;
     if(SUCCEEDED(SHParseDisplayName(folder.c_str(),nullptr,wil::out_param(item),0,nullptr))) {
-        SHChangeNotify(SHCNE_ATTRIBUTES|SHCNE_UPDATEITEM,SHCNF_IDLIST|SHCNF_FLUSH,item.get(),nullptr);
-        SHChangeNotify(SHCNE_UPDATEDIR,SHCNF_IDLIST|SHCNF_FLUSH,item.get(),nullptr);
+        // A third-party Shell listener must not hold up an icon operation.
+        SHChangeNotify(SHCNE_ATTRIBUTES,SHCNF_IDLIST|SHCNF_FLUSHNOWAIT,item.get(),nullptr);
+        SHChangeNotify(SHCNE_UPDATEITEM,SHCNF_IDLIST|SHCNF_FLUSHNOWAIT,item.get(),nullptr);
+        SHChangeNotify(SHCNE_UPDATEDIR,SHCNF_IDLIST|SHCNF_FLUSHNOWAIT,item.get(),nullptr);
     }
     if(SUCCEEDED(SHParseDisplayName(folder.parent_path().c_str(),nullptr,wil::out_param(parent),0,nullptr))) {
-        SHChangeNotify(SHCNE_UPDATEDIR,SHCNF_IDLIST|SHCNF_FLUSH,parent.get(),nullptr);
+        SHChangeNotify(SHCNE_UPDATEDIR,SHCNF_IDLIST|SHCNF_FLUSHNOWAIT,parent.get(),nullptr);
     }
 }
 std::wstring quoteArg(const std::wstring& arg) {

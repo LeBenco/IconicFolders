@@ -8,7 +8,7 @@
  xmlns:desktop5="http://schemas.microsoft.com/appx/manifest/desktop/windows10/5"
  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
  IgnorableNamespaces="uap uap10 com desktop4 desktop5 rescap">
- <Identity Name="IconicFolders" Publisher="CN=IconicFolders" Version="1.0.1.0" ProcessorArchitecture="x64"/>
+ <Identity Name="IconicFolders" Publisher="CN=IconicFolders" Version="1.1.0.4" ProcessorArchitecture="x64"/>
  <Properties><DisplayName>IconicFolders</DisplayName><PublisherDisplayName>IconicFolders</PublisherDisplayName><Logo>assets\logo44.png</Logo><uap10:AllowExternalContent>true</uap10:AllowExternalContent></Properties>
  <Resources><Resource Language="en-US"/><Resource Language="fr-FR"/></Resources>
  <Dependencies><TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0"/></Dependencies>

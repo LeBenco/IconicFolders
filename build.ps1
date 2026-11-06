@@ -1,8 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 Benco
-param([ValidateSet('Release','Asan')][string]$Configuration='Release',[switch]$Test,[switch]$Installer,[switch]$RegenerateIcons)
+param([ValidateSet('Release','Asan')][string]$Configuration='Release',[switch]$Test,[switch]$UITest,[switch]$Installer,[switch]$RegenerateIcons)
 $ErrorActionPreference='Stop'
 Set-Location $PSScriptRoot
+if(($Test -or $UITest) -and !(Test-Path -LiteralPath 'tests\tests.cpp')) {
+    throw 'Test sources are not included in this checkout.'
+}
 $vswhere='C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
 $vs=& $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 if(!$vs) { throw 'MSVC Build Tools 2022 required.' }
@@ -46,9 +49,25 @@ if($Test) {
         Write-Output 'PASS AddressSanitizer positive control: intentional heap-buffer-overflow detected'
     }
 }
+if($UITest) {
+    & "$out\SelectorTests.exe"
+    if($LASTEXITCODE) {throw 'Selector integration tests failed.'}
+    & "$out\PickerTests.exe"
+    if($LASTEXITCODE) {throw 'Picker flow tests failed.'}
+}
 if($Installer) {
     if($Configuration -ne 'Release') {throw 'Installer requires Release.'}
     New-Item -ItemType Directory dist -Force | Out-Null
-    & 'C:\Program Files (x86)\NSIS\makensis.exe' /V2 installer\IconicFolders.nsi
+    $installerAssets=Join-Path $PSScriptRoot 'build\installer-assets'
+    New-Item -ItemType Directory -Path $installerAssets -Force | Out-Null
+    $setupInkscape=$env:INKSCAPE
+    if(!$setupInkscape){$setupInkscape=Join-Path $env:ProgramFiles 'Inkscape\bin\inkscape.com'}
+    $setupPython=$env:ICON_PYTHON
+    if(!$setupPython){$setupPython=Join-Path (Split-Path $setupInkscape) 'python.exe'}
+    & $setupPython .\tools\Make-InstallerAssets.py --inkscape $setupInkscape
+    if($LASTEXITCODE){throw 'Installer artwork generation failed.'}
+    & .\tools\build-installer-assets.cmd $vs $installerAssets
+    if($LASTEXITCODE){throw 'Installer native assets build failed.'}
+    & 'C:\Program Files (x86)\NSIS\makensis.exe' /INPUTCHARSET UTF8 /WX /V2 installer\IconicFolders.nsi
     if($LASTEXITCODE) {throw 'NSIS build failed.'}
 }

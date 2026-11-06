@@ -1,0 +1,9 @@
+1.1.0
+
+- Choisir une image, une icône, un autre dossier ou des icônes embarquées.
+- Convertir les images et mémoriser les sources ajoutées.
+- Installer pour le compte actuel ou tous les utilisateurs.
+- Mettre à jour une extension déjà chargée.
+- Corriger le redémarrage facultatif de l’Explorateur.
+- Désactiver l’intégration après cinq arrêts anormaux précoces de l’Explorateur.
+- Interface compacte avec un aperçu de sélection agrandi.

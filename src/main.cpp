@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 Benco
 #include "core.h"
+#include "picker.h"
+#include "setup.h"
+#include "shell-safety.h"
 #include "ui.h"
 #include "resource.h"
 #include <shobjidl.h>
@@ -12,11 +15,11 @@
 #include <wil/result.h>
 #include <set>
 #include <algorithm>
+#include <thread>
+#include <atomic>
 
 using namespace iconic;
 namespace {
-constexpr wchar_t Settings[]=L"Software\\IconicFolders";
-constexpr DWORD Radio=200,Reference=201,Copy=202;
 std::wstring errorText(HRESULT hr) {
     if(hr==UnsupportedIniEncoding)return tr(IDS_UNSUPPORTED_ENCODING);
     if(hr==HRESULT_FROM_WIN32(ERROR_NO_UNICODE_TRANSLATION))return tr(IDS_ENCODING);
@@ -35,58 +38,55 @@ bool confirm(UINT title,UINT body,UINT button,const std::vector<fs::path>& paths
     TASKDIALOGCONFIG config={sizeof(config)}; config.pszWindowTitle=L"IconicFolders"; config.pszMainInstruction=head.c_str(); config.pszContent=content.c_str(); config.pszMainIcon=TD_WARNING_ICON; config.dwCommonButtons=TDCBF_CANCEL_BUTTON; config.cButtons=1; config.pButtons=buttons; config.nDefaultButton=IDCANCEL; config.dwFlags=TDF_SIZE_TO_CONTENT|TDF_ALLOW_DIALOG_CANCELLATION;
     int answer=0; THROW_IF_FAILED(TaskDialogIndirect(&config,&answer,nullptr,nullptr)); return answer==IDYES;
 }
-struct Preferences { std::wstring directory; Mode mode=Mode::Reference; };
-Preferences loadPreferences() {
-    Preferences p; DWORD mode=0,size=sizeof(mode); RegGetValueW(HKEY_CURRENT_USER,Settings,L"Copy",RRF_RT_REG_DWORD,nullptr,&mode,&size); p.mode=mode==1?Mode::Copy:Mode::Reference;
-    size=0; if(RegGetValueW(HKEY_CURRENT_USER,Settings,L"LastDirectory",RRF_RT_REG_SZ,nullptr,nullptr,&size)==ERROR_SUCCESS && size<65536) {
-        std::vector<wchar_t> value(size/2+1,0); if(RegGetValueW(HKEY_CURRENT_USER,Settings,L"LastDirectory",RRF_RT_REG_SZ,nullptr,value.data(),&size)==ERROR_SUCCESS)p.directory=value.data();
-    } return p;
+void safetyMessage() {
+    auto title=tr(IDS_SAFETY_TITLE),body=tr(IDS_SAFETY_BODY),enable=tr(IDS_SAFETY_ENABLE);
+    TASKDIALOG_BUTTON button={IDYES,enable.c_str()};TASKDIALOGCONFIG dialog={sizeof(dialog)};
+    dialog.pszWindowTitle=L"IconicFolders";dialog.pszMainInstruction=title.c_str();dialog.pszContent=body.c_str();dialog.pszMainIcon=TD_WARNING_ICON;
+    dialog.dwCommonButtons=TDCBF_CLOSE_BUTTON;dialog.cButtons=1;dialog.pButtons=&button;dialog.nDefaultButton=IDCLOSE;dialog.dwFlags=TDF_SIZE_TO_CONTENT|TDF_ALLOW_DIALOG_CANCELLATION;
+    int answer=IDCLOSE;THROW_IF_FAILED(TaskDialogIndirect(&dialog,&answer,nullptr,nullptr));
+    if(answer==IDYES)THROW_IF_FAILED(resetShellSafety());
 }
-void savePreferences(const fs::path& source,Mode mode) {
-    HKEY raw=nullptr; if(RegCreateKeyExW(HKEY_CURRENT_USER,Settings,0,nullptr,0,KEY_SET_VALUE,nullptr,&raw,nullptr)!=ERROR_SUCCESS)return;
-    wil::unique_hkey key(raw); auto directory=source.parent_path().native(); DWORD copy=mode==Mode::Copy?1:0;
-    RegSetValueExW(key.get(),L"Copy",0,REG_DWORD,reinterpret_cast<const BYTE*>(&copy),sizeof(copy));
-    RegSetValueExW(key.get(),L"LastDirectory",0,REG_SZ,reinterpret_cast<const BYTE*>(directory.c_str()),static_cast<DWORD>((directory.size()+1)*2));
-}
-bool pick(const std::vector<fs::path>& folders,fs::path& source,Mode& mode) {
-    auto preferences=loadPreferences(); mode=preferences.mode; std::wstring initial=preferences.directory;
-    try { auto current=inspect(folders[0]); if(!current.resource.empty()) { mode=current.managed?Mode::Copy:Mode::Reference; if(!current.managed && fs::is_directory(current.source.parent_path()))initial=current.source.parent_path().native(); } } catch(...) {}
-    wil::com_ptr<IFileOpenDialog> dialog; THROW_IF_FAILED(CoCreateInstance(CLSID_FileOpenDialog,nullptr,CLSCTX_INPROC_SERVER,IID_PPV_ARGS(&dialog)));
-    DWORD options=0; THROW_IF_FAILED(dialog->GetOptions(&options)); THROW_IF_FAILED(dialog->SetOptions((options|FOS_FORCEFILESYSTEM|FOS_FILEMUSTEXIST|FOS_PATHMUSTEXIST|FOS_DONTADDTORECENT)&~FOS_ALLOWMULTISELECT));
-    auto title=folders.size()==1?format(IDS_TITLE_ONE,folders[0].filename().native()):format(IDS_TITLE_MANY,std::to_wstring(folders.size()));
-    auto filterName=tr(IDS_ICO),applyLabel=tr(IDS_APPLY); COMDLG_FILTERSPEC filter={filterName.c_str(),L"*.ico"};
-    THROW_IF_FAILED(dialog->SetTitle(title.c_str())); THROW_IF_FAILED(dialog->SetFileTypes(1,&filter)); THROW_IF_FAILED(dialog->SetOkButtonLabel(applyLabel.c_str()));
-    wil::com_ptr<IFileDialogCustomize> custom=dialog.query<IFileDialogCustomize>();
-    auto ref=tr(IDS_REFERENCE),copy=tr(IDS_COPY);
-    THROW_IF_FAILED(custom->AddRadioButtonList(Radio)); THROW_IF_FAILED(custom->AddControlItem(Radio,Reference,ref.c_str())); THROW_IF_FAILED(custom->AddControlItem(Radio,Copy,copy.c_str())); THROW_IF_FAILED(custom->SetSelectedControlItem(Radio,mode==Mode::Copy?Copy:Reference));
-    if(!initial.empty()) { wil::com_ptr<IShellItem> item; if(SUCCEEDED(SHCreateItemFromParsingName(initial.c_str(),nullptr,IID_PPV_ARGS(&item))))dialog->SetFolder(item.get()); }
-    for(;;) {
-        HRESULT result=dialog->Show(nullptr); if(result==HRESULT_FROM_WIN32(ERROR_CANCELLED))return false; THROW_IF_FAILED(result);
-        wil::com_ptr<IShellItem> item; THROW_IF_FAILED(dialog->GetResult(&item)); wil::unique_cotaskmem_string path; THROW_IF_FAILED(item->GetDisplayName(SIGDN_FILESYSPATH,&path)); source=path.get();
-        DWORD selection=Reference; THROW_IF_FAILED(custom->GetSelectedControlItem(Radio,&selection)); mode=selection==Copy?Mode::Copy:Mode::Reference;
-        try { validateIcon(source); return true; } catch(...) { message(tr(IDS_INVALID_ICO),errorText(wil::ResultFromCaughtException())); }
-    }
+HRESULT restartWithProgress(){
+    struct Progress {
+        std::thread worker;std::atomic<bool> done=false;HRESULT result=E_UNEXPECTED;
+        static HRESULT CALLBACK callback(HWND window,UINT event,WPARAM,LPARAM,LONG_PTR data) noexcept {
+            auto self=reinterpret_cast<Progress*>(data);
+            if(event==TDN_CREATED){
+                SendMessageW(window,TDM_SET_PROGRESS_BAR_MARQUEE,TRUE,0);
+                SendMessageW(window,TDM_ENABLE_BUTTON,IDCLOSE,FALSE);
+                try {self->worker=std::thread([self,window]{self->result=restartExplorer();self->done=true;PostMessageW(window,TDM_ENABLE_BUTTON,IDCLOSE,TRUE);PostMessageW(window,TDM_CLICK_BUTTON,IDCLOSE,0);});}
+                catch(...){self->result=wil::ResultFromCaughtException();self->done=true;PostMessageW(window,TDM_ENABLE_BUTTON,IDCLOSE,TRUE);PostMessageW(window,TDM_CLICK_BUTTON,IDCLOSE,0);}
+            }
+            if(event==TDN_BUTTON_CLICKED&&!self->done)return S_FALSE;
+            return S_OK;
+        }
+    } progress;
+    auto title=tr(IDS_RESTARTING),body=tr(IDS_RESTART_WAIT);
+    TASKDIALOGCONFIG dialog={sizeof(dialog)};dialog.pszWindowTitle=L"IconicFolders";dialog.pszMainInstruction=title.c_str();dialog.pszContent=body.c_str();
+    dialog.dwFlags=TDF_SHOW_MARQUEE_PROGRESS_BAR|TDF_SIZE_TO_CONTENT;dialog.dwCommonButtons=TDCBF_CLOSE_BUTTON;dialog.pfCallback=Progress::callback;dialog.lpCallbackData=reinterpret_cast<LONG_PTR>(&progress);
+    HRESULT shown=TaskDialogIndirect(&dialog,nullptr,nullptr,nullptr);if(progress.worker.joinable())progress.worker.join();return FAILED(shown)?shown:progress.result;
 }
 int run(std::vector<fs::path> folders,bool resetting) {
     std::set<std::wstring> seen; std::vector<fs::path> unique;
     for(auto& p:folders) { p=fs::absolute(p).lexically_normal(); auto s=p.native(); for(auto& c:s)c=static_cast<wchar_t>(towupper(c)); if(seen.insert(s).second)unique.push_back(p); }
     folders=std::move(unique); if(folders.empty()) { message(L"IconicFolders",tr(IDS_HELP),TD_INFORMATION_ICON); return 0; }
-    fs::path source; Mode mode=Mode::Reference;
-    if(!resetting&&!pick(folders,source,mode))return 0;
+    IconData data; Mode mode=Mode::Reference,preferred=Mode::Reference;
+    if(!resetting&&!pickIcon(folders,data,mode,preferred))return 0;
+    const auto& source=data.source;
     std::vector<fs::path> replacements,deletions;
+    std::set<fs::path> approvals;
     for(const auto& folder:folders) try {
         auto current=inspect(folder);
-        if(!resetting && needsOverwrite(folder,source,mode))replacements.push_back(folder/ManagedIcon);
-        if(current.managed && fs::exists(folder/ManagedIcon) && (resetting || (mode==Mode::Reference && fs::absolute(source).lexically_normal()!=fs::absolute(folder/ManagedIcon).lexically_normal())))deletions.push_back(folder/ManagedIcon);
+        if(!resetting && needsOverwrite(folder,data,mode)){replacements.push_back(current.managed?current.source:folder/managedIconName(data.bytes));approvals.insert(folder);}
+        if(current.managed && fs::exists(current.source) && (resetting || (mode==Mode::Reference && fs::absolute(source).lexically_normal()!=fs::absolute(current.source).lexically_normal()))){deletions.push_back(current.source);approvals.insert(folder);}
     } catch(...) { /* Report per-folder errors together after confirmation. */ }
     if(!confirm(IDS_CONFIRM_TITLE,IDS_CONFIRM_BODY,IDS_REPLACE,replacements)||!confirm(IDS_DELETE_TITLE,IDS_DELETE_BODY,IDS_DELETE,deletions))return 0;
     std::wstring failures; bool succeeded=false;
     for(const auto& folder:folders)try {
-        auto managed=folder/ManagedIcon;
-        bool approved=std::find(replacements.begin(),replacements.end(),managed)!=replacements.end()||std::find(deletions.begin(),deletions.end(),managed)!=deletions.end();
-        if(resetting)reset(folder,approved);else apply(folder,source,mode,approved);succeeded=true;
+        bool approved=approvals.contains(folder);
+        if(resetting)reset(folder,approved);else apply(folder,data,mode,approved);succeeded=true;
     } catch(...) { failures+=folder.native()+L"\n"+errorText(wil::ResultFromCaughtException())+L"\n\n"; }
-    if(succeeded&&!resetting)savePreferences(source,mode);
+    if(succeeded&&!resetting)rememberIconChoice(source,preferred);
     if(!failures.empty()) { message(tr(IDS_ERROR),format(IDS_FAILURES,failures)); return 1; } return 0;
 }
 }
@@ -96,6 +96,17 @@ int WINAPI wWinMain(HINSTANCE,HINSTANCE,PWSTR,int) {
         auto com=wil::CoInitializeEx(COINIT_APARTMENTTHREADED);
         int argc=0; wil::unique_hlocal_ptr<wchar_t*[]> argv(CommandLineToArgvW(GetCommandLineW(),&argc)); THROW_LAST_ERROR_IF(!argv);
         std::vector<fs::path> folders; bool resetting=false;
+        if(argc==3&&std::wstring(argv[1])==L"--watch-explorer") {
+            wchar_t* end=nullptr;ULONGLONG value=wcstoull(argv[2],&end,10);THROW_WIN32_IF(ERROR_INVALID_PARAMETER,!value||!end||*end||value==~0ULL);
+            bool disabled=false;HRESULT watched=watchExplorer(reinterpret_cast<HANDLE>(static_cast<ULONG_PTR>(value)),disabled);if(FAILED(watched))return 1;
+            if(disabled)safetyMessage();return 0;
+        }
+        if(argc==1&&shellSafetyDisabled()){safetyMessage();return 0;}
+        if(argc==2&&(std::wstring(argv[1])==L"--restart-explorer"||std::wstring(argv[1])==L"--probe-explorer-restart")){
+            bool probe=std::wstring(argv[1])==L"--probe-explorer-restart";HRESULT hr=probe?restartExplorer(true):restartWithProgress();
+            if(FAILED(hr)&&!probe)message(L"IconicFolders",tr(IDS_RESTART_FAILED),TD_INFORMATION_ICON);
+            return SUCCEEDED(hr)?0:1;
+        }
         if(argc==3 && std::wstring(argv[1])==L"--request") {
             fs::path requestPath=argv[2]; auto bytes=readFile(requestPath,4*1024*1024);
             auto remove=wil::scope_exit([&]{DeleteFileW(requestPath.c_str());});
