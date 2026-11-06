@@ -30,9 +30,11 @@ To address this, IconicFolders offers two modes:
 - **Copy the icon into the folder:** store a hidden copy inside the folder and
   use it as the folder’s icon. This copy travels with the folder.
 
-PNG, JPEG and BMP images are converted and copied automatically, centered without
-cropping. EXE/DLL icons are used by reference only. Added sources and your interface
-preferences are remembered. Only use images and icons you have the right to use.
+This choice is available only for `.ico` files. For other sources:
+
+- **PNG, JPEG and BMP images:** converted and copied automatically, centered
+  without cropping.
+- **EXE/DLL icons:** used by reference only.
 
 Choose **Folder icon → Restore default icon** to reset. Subfolders are not changed.
 
