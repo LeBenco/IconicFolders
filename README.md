@@ -21,8 +21,14 @@ at any time. For Windows 10 and later (x64), in French or English.
 
 On Windows 11, open **Show more options** to find the menu.
 
-- **Use the original icon:** the source file must remain available.
-- **Copy the icon into the folder:** a hidden copy stays with the folder.
+If the folder is on a network or removable drive, or is copied to another computer,
+its custom icon will not appear if the original icon file is unavailable there.
+To address this, IconicFolders offers two modes:
+
+- **Use the original icon:** use the selected file directly. It must remain
+  accessible at the same path.
+- **Copy the icon into the folder:** store a hidden copy inside the folder and
+  use it as the folder’s icon. This copy travels with the folder.
 
 PNG, JPEG and BMP images are converted and copied automatically, centered without
 cropping. EXE/DLL icons are used by reference only. Added sources and your interface
